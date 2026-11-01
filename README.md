@@ -1,125 +1,110 @@
 # Hirely
 
-This monorepo is maintained for task and assessment purposes.
+### Vendor and Hiring Manager Contract Management Platform
 
-It contains:
+Hirely is a recruitment management platform designed to connect hiring managers and vendors through a centralized workspace. It simplifies recruitment workflows with opening management, candidate evaluation, and AI-assisted recommendations.
 
-- `Zelosify-Backend` for backend services and APIs
-- `Zelosify-Frontend` for frontend application code
+## Features
 
-The repository is intended to organize and submit task-related implementation work in one place.
+- **Hiring Management:** Create and manage recruitment openings.
+- **Vendor Workspace:** Explore opportunities and manage recruitment submissions.
+- **Candidate Evaluation:** Review candidate profiles and application details.
+- **AI Recommendations:** AI-assisted candidate analysis and recommendations.
+- **User Management:** Manage profiles and account settings.
+- **Authentication:** Secure authentication with TOTP verification.
+- **Support:** Dedicated support interface.
 
-## Local ports (do not change these)
+## Technology Stack
 
-| Service | Port | URL |
-| --- | --- | --- |
-| Frontend (Next.js) | `5173` | http://localhost:5173 |
-| Backend (Node/Express) | `5000` | http://localhost:5000 |
-| Keycloak | `8080` | http://localhost:8080/auth |
-| PostgreSQL (Docker) | `5445` | `localhost:5445` |
+| Category | Technologies |
+|---|---|
+| Frontend | Next.js 15, React 19, Tailwind CSS |
+| State Management | Redux Toolkit |
+| UI Components | Radix UI, Lucide React |
+| Animations | Framer Motion |
+| Data Visualization | Recharts |
+| Backend | Node.js, Express.js, TypeScript |
+| Database | PostgreSQL |
+| ORM | Prisma |
+| Authentication | Keycloak, TOTP |
+| AI Integration | Groq API |
+| Cloud Storage | AWS S3 |
+| Infrastructure | Docker, Docker Compose |
 
-If a previous run was left running, free those ports before starting again. Example on Linux:
+## Project Structure
 
-```bash
-# Stop leftover Node processes on the app ports
-fuser -k 5173/tcp 5000/tcp 2>/dev/null || true
+    Hirely/
+    ├── Zelosify-Frontend/
+    │   ├── public/
+    │   └── src/
+    │       ├── app/
+    │       ├── components/
+    │       ├── hooks/
+    │       ├── redux/
+    │       ├── styles/
+    │       └── utils/
+    │
+    ├── Zelosify-Backend/
+    │   └── Server/
+    │       ├── prisma/
+    │       └── src/
+    │
+    └── README.md
+    ## Prerequisites
 
-# Optional: if Prisma Studio was left open
-fuser -k 5555/tcp 2>/dev/null || true
-```
+- Node.js 22 or later
+- npm
+- Docker
+- Docker Compose
 
-Leave `8080` and `5445` to Docker unless you intend to restart the compose stack.
+## Getting Started
 
-## Prerequisites
+### 1. Clone the Repository
 
-- Node.js v22.x and npm
-- Docker and Docker Compose
-- Git
+    git clone https://github.com/AdityaSirsalkar001/Hirely.git
+    cd Hirely
 
-## 1. Start Postgres and Keycloak
+### 2. Backend Setup
 
-```bash
-cd Zelosify-Backend/Server
-docker compose up -d
-```
+Configure the required environment variables in `Zelosify-Backend/Server/.env`.
 
-Wait until `recruit-postgres` and `recruit-keycloak` are healthy. Keycloak admin UI:
+    cd Zelosify-Backend/Server
+    npm install
+    npm run prisma:generate
+    npx prisma migrate deploy
+    npm run dev
 
-- URL: http://localhost:8080
-- Username: `admin`
-- Password: `admin`
+### 3. Frontend Setup
 
-Create the `Zelosify` Keycloak realm, `dynamic-client` client, and realm roles (`IT_VENDOR`, `BUSINESS_USER`, `HIRING_MANAGER`, `VENDOR_MANAGER`) if they are not already present. The application is branded as Hirely; the realm name remains Zelosify for compatibility with the supplied identity configuration. Copy the client secret and RS256 public key into `Zelosify-Backend/Server/.env`.
+Configure the frontend environment variables in `Zelosify-Frontend/.env`.
 
-## 2. Backend env and database
+Set the backend API URL:
 
-```bash
-cd Zelosify-Backend/Server
-cp .env.example .env   # only if .env does not already exist
-```
+    NEXT_PUBLIC_BACKEND_URL=http://localhost:5000/api/v1
 
-Required values in `.env` (keep `PORT=5000` and `FRONTEND_URL=http://localhost:5173`):
+Install dependencies and start the frontend:
 
-- `DATABASE_URL` pointing at `localhost:5445`
-- `KEYCLOAK_URL=http://localhost:8080/auth`
-- `KEYCLOAK_CLIENT_SECRET` and `KEYCLOAK_RS256_SIG` from the Keycloak console
-- AWS S3 keys if profile upload is needed
-- `GROQ_API_KEY` if AI recommendation analysis is needed
+    cd Zelosify-Frontend
+    npm install
+    npm run dev
 
-Then:
+## Application Routes
 
-```bash
-npm ci
-npm run prisma:generate
-npx prisma migrate deploy
-npm run seed:openings   # optional; seeds Bruce Wayne Corp openings
-npm run dev
-```
+| Section | Route |
+|---|---|
+| Hiring Manager | `/business-user/hiring` |
+| Vendor Opportunities | `/vendor/openings` |
+| User Settings | `/user/settings` |
+| Support | `/user/support` |
 
-Backend should log `Server running on port 5000...` and `GET http://localhost:5000/` should return `Server Connected!`.
+## Database
 
-## 3. Frontend
+Hirely uses PostgreSQL with Prisma ORM for database management.
 
-```bash
-cd Zelosify-Frontend
-cp .env.example .env    # only if .env does not already exist
-```
+To access Prisma Studio, run this command from the backend directory:
 
-`.env` must keep:
+    npx prisma studio
 
-```bash
-NEXT_PUBLIC_BACKEND_URL=http://localhost:5000/api/v1
-```
+## License
 
-Then:
-
-```bash
-npm ci
-npm run dev
-```
-
-Open http://localhost:5173. Do not switch to another port; CORS and cookies are configured for `5173`.
-
-## 4. First login (from the setup guide)
-
-1. Create a tenant in Prisma Studio (`npm run prisma:studio` in `Zelosify-Backend/Server`).
-2. Register a user with `POST http://localhost:5000/api/v1/auth/register` (roles such as `IT_VENDOR` or `HIRING_MANAGER`).
-3. Scan the returned TOTP QR code in an authenticator app.
-4. Sign in at http://localhost:5173/login with username, password, and TOTP.
-
-Hiring manager UI: `/business-user/hiring`
-Vendor openings UI: `/vendor/openings`
-
-## Stop locally
-
-```bash
-# App processes
-fuser -k 5173/tcp 5000/tcp 2>/dev/null || true
-
-# Docker stack (keeps volumes)
-cd Zelosify-Backend/Server
-docker compose stop
-```
-
-Regards,
-Hirely
+All rights reserved.
