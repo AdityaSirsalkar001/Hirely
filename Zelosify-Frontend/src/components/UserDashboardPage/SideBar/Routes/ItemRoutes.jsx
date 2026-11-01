@@ -8,11 +8,6 @@ const getOverviewItemsByRole = (role) => {
     case "BUSINESS_USER":
       return [
         {
-          title: "Hiring Manager",
-          href: "/business-user/hiring",
-          icon: Scale3DIcon,
-        },
-        {
           title: "Digital",
           href: "/business-user/digital-initiative",
           icon: MdDataUsage,
@@ -27,7 +22,7 @@ const getOverviewItemsByRole = (role) => {
 
     case "HIRING_MANAGER":
       return [
-        { title: "Candidate Review", href: "/business-user/hiring", icon: Scale3DIcon },
+        { title: "Candidate Review", href: "/hiring-manager/openings", icon: Scale3DIcon },
       ];
 
     default:

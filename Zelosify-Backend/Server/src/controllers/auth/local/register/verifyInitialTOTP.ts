@@ -124,7 +124,7 @@ export const verifyInitialTOTP = async (
         user.role === "IT_VENDOR"
           ? "/vendor/openings"
           : user.role === "HIRING_MANAGER"
-            ? "/business-user/hiring"
+            ? "/hiring-manager/openings"
             : "/user",
     });
   } catch (error) {

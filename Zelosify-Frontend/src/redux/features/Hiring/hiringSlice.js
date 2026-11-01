@@ -4,13 +4,13 @@ import axiosInstance from "@/utils/Axios/AxiosInstance";
 
 const message = (error, fallback) => error.response?.data?.message || error.message || fallback;
 
-export const fetchVendorOpenings = createAsyncThunk("hiring/fetchVendorOpenings", async (_, { rejectWithValue }) => {
-  try { return (await axiosInstance.get("/vendor/openings")).data; }
+export const fetchVendorOpenings = createAsyncThunk("hiring/fetchVendorOpenings", async ({ page = 1, limit = 20 } = {}, { rejectWithValue }) => {
+  try { return (await axiosInstance.get("/vendor/openings", { params: { page, limit } })).data; }
   catch (error) { return rejectWithValue(message(error, "Could not load openings")); }
 });
 
-export const fetchManagerOpenings = createAsyncThunk("hiring/fetchManagerOpenings", async (_, { rejectWithValue }) => {
-  try { return (await axiosInstance.get("/hiring-manager/openings")).data; }
+export const fetchManagerOpenings = createAsyncThunk("hiring/fetchManagerOpenings", async ({ page = 1, limit = 20 } = {}, { rejectWithValue }) => {
+  try { return (await axiosInstance.get("/hiring-manager/openings", { params: { page, limit } })).data; }
   catch (error) { return rejectWithValue(message(error, "Could not load hiring openings")); }
 });
 
@@ -26,8 +26,8 @@ export const deleteManagerOpening = createAsyncThunk("hiring/deleteManagerOpenin
   } catch (error) { return rejectWithValue(message(error, "Could not delete this opening")); }
 });
 
-export const fetchOpeningProfiles = createAsyncThunk("hiring/fetchOpeningProfiles", async (openingId, { rejectWithValue }) => {
-  try { return { openingId, ...(await axiosInstance.get(`/hiring-manager/openings/${encodeURIComponent(openingId)}/profiles`)).data }; }
+export const fetchOpeningProfiles = createAsyncThunk("hiring/fetchOpeningProfiles", async ({ openingId, page = 1, limit = 20 }, { rejectWithValue }) => {
+  try { return { openingId, page, ...(await axiosInstance.get(`/hiring-manager/openings/${encodeURIComponent(openingId)}/profiles`, { params: { page, limit } })).data }; }
   catch (error) { return rejectWithValue(message(error, "Could not load submitted profiles")); }
 });
 
@@ -38,7 +38,17 @@ export const reviewProfile = createAsyncThunk("hiring/reviewProfile", async ({ p
   } catch (error) { return rejectWithValue(message(error, "Could not update this profile")); }
 });
 
-const initialState = { vendorOpenings: [], managerOpenings: [], profilesByOpening: {}, isLoading: false, isSubmitting: false, error: null };
+const initialState = {
+  vendorOpenings: [],
+  vendorOpeningsPagination: null,
+  managerOpenings: [],
+  managerOpeningsPagination: null,
+  profilesByOpening: {},
+  profilesPaginationByOpening: {},
+  isLoading: false,
+  isSubmitting: false,
+  error: null,
+};
 const hiringSlice = createSlice({
   name: "hiring", initialState,
   reducers: {
@@ -48,10 +58,10 @@ const hiringSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchVendorOpenings.pending, (state) => { state.isLoading = true; state.error = null; })
-      .addCase(fetchVendorOpenings.fulfilled, (state, action) => { state.isLoading = false; state.vendorOpenings = action.payload.data || []; })
+      .addCase(fetchVendorOpenings.fulfilled, (state, action) => { state.isLoading = false; state.vendorOpenings = action.payload.data || []; state.vendorOpeningsPagination = action.payload.pagination || null; })
       .addCase(fetchVendorOpenings.rejected, (state, action) => { state.isLoading = false; state.error = action.payload; })
       .addCase(fetchManagerOpenings.pending, (state) => { state.isLoading = true; state.error = null; })
-      .addCase(fetchManagerOpenings.fulfilled, (state, action) => { state.isLoading = false; state.managerOpenings = action.payload.data || []; })
+      .addCase(fetchManagerOpenings.fulfilled, (state, action) => { state.isLoading = false; state.managerOpenings = action.payload.data || []; state.managerOpeningsPagination = action.payload.pagination || null; })
       .addCase(fetchManagerOpenings.rejected, (state, action) => { state.isLoading = false; state.error = action.payload; })
       .addCase(createManagerOpening.pending, (state) => { state.isSubmitting = true; state.error = null; })
       .addCase(createManagerOpening.fulfilled, (state, action) => {
@@ -64,11 +74,22 @@ const hiringSlice = createSlice({
       .addCase(deleteManagerOpening.fulfilled, (state, action) => {
         state.isSubmitting = false;
         state.managerOpenings = state.managerOpenings.filter((opening) => opening.id !== action.payload);
-        delete state.profilesByOpening[action.payload];
+        const profileKeyPrefix = `${action.payload}:`;
+        Object.keys(state.profilesByOpening).forEach((key) => {
+          if (key.startsWith(profileKeyPrefix)) delete state.profilesByOpening[key];
+        });
+        Object.keys(state.profilesPaginationByOpening).forEach((key) => {
+          if (key.startsWith(profileKeyPrefix)) delete state.profilesPaginationByOpening[key];
+        });
       })
       .addCase(deleteManagerOpening.rejected, (state, action) => { state.isSubmitting = false; state.error = action.payload; })
       .addCase(fetchOpeningProfiles.pending, (state) => { state.isLoading = true; state.error = null; })
-      .addCase(fetchOpeningProfiles.fulfilled, (state, action) => { state.isLoading = false; state.profilesByOpening[action.payload.openingId] = action.payload.data || []; })
+      .addCase(fetchOpeningProfiles.fulfilled, (state, action) => {
+        state.isLoading = false;
+        const key = `${action.payload.openingId}:${action.payload.page}`;
+        state.profilesByOpening[key] = action.payload.data || [];
+        state.profilesPaginationByOpening[key] = action.payload.pagination || null;
+      })
       .addCase(fetchOpeningProfiles.rejected, (state, action) => { state.isLoading = false; state.error = action.payload; })
       .addCase(reviewProfile.pending, (state) => { state.isSubmitting = true; state.error = null; })
       .addCase(reviewProfile.fulfilled, (state, action) => {

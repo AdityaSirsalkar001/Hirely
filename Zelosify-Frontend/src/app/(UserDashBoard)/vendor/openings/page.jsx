@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   BriefcaseBusiness,
@@ -10,10 +10,17 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import useHiring from "@/hooks/Hiring/useHiring";
+import PaginationControls from "@/components/UI/PaginationControls";
+
+const PAGE_SIZE = 50;
+const VIRTUAL_ROW_HEIGHT = 136;
+const VIRTUAL_VIEWPORT_HEIGHT = 720;
+const VIRTUAL_OVERSCAN = 4;
 
 export default function VendorOpeningsPage() {
   const {
     vendorOpenings,
+    vendorOpeningsPagination,
     isLoading,
     error,
     loadVendorOpenings,
@@ -21,10 +28,18 @@ export default function VendorOpeningsPage() {
   } = useHiring();
 
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [scrollTop, setScrollTop] = useState(0);
+  const tableScrollRef = useRef(null);
+
+  const resetTableScroll = () => {
+    setScrollTop(0);
+    if (tableScrollRef.current) tableScrollRef.current.scrollTop = 0;
+  };
 
   useEffect(() => {
-    loadVendorOpenings();
-  }, [loadVendorOpenings]);
+    loadVendorOpenings(page, PAGE_SIZE);
+  }, [loadVendorOpenings, page]);
 
   const filteredOpenings = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -49,12 +64,12 @@ export default function VendorOpeningsPage() {
   }, [vendorOpenings, search]);
 
   const refreshOpenings = () => {
-    loadVendorOpenings(true);
+    loadVendorOpenings(page, PAGE_SIZE);
   };
 
   const retryLoading = () => {
     handleClearError();
-    loadVendorOpenings(true);
+    loadVendorOpenings(page, PAGE_SIZE);
   };
 
   const formatPostedDate = (value) => {
@@ -68,6 +83,24 @@ export default function VendorOpeningsPage() {
           day: "numeric",
         });
   };
+
+  const totalOpenings = vendorOpeningsPagination?.total ?? vendorOpenings?.length ?? 0;
+  const totalPages = vendorOpeningsPagination?.totalPages ?? 1;
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const isVirtualized = totalOpenings > 50;
+  const firstVisibleIndex = isVirtualized
+    ? Math.max(0, Math.floor(scrollTop / VIRTUAL_ROW_HEIGHT) - VIRTUAL_OVERSCAN)
+    : 0;
+  const lastVisibleIndex = isVirtualized
+    ? Math.min(
+        filteredOpenings.length,
+        Math.ceil((scrollTop + VIRTUAL_VIEWPORT_HEIGHT) / VIRTUAL_ROW_HEIGHT) + VIRTUAL_OVERSCAN
+      )
+    : filteredOpenings.length;
+  const renderedOpenings = filteredOpenings.slice(firstVisibleIndex, lastVisibleIndex);
 
   return (
     <main className="min-h-screen bg-background px-4 py-7 text-foreground sm:px-6 lg:px-9 lg:py-10">
@@ -108,7 +141,7 @@ export default function VendorOpeningsPage() {
 
             <div className="mt-2 flex items-baseline gap-3">
               <span className="text-4xl font-bold tracking-tight text-foreground">
-                {vendorOpenings?.length || 0}
+                {totalOpenings}
               </span>
               <span className="text-sm text-muted-foreground">
                 openings available
@@ -125,8 +158,12 @@ export default function VendorOpeningsPage() {
             <input
               type="text"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search roles, skills, location..."
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+                resetTableScroll();
+              }}
+              placeholder="Search this page by role, skill or location..."
               className="w-full rounded-xl bg-background py-4 pl-12 pr-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/40"
             />
           </div>
@@ -159,8 +196,7 @@ export default function VendorOpeningsPage() {
             </h2>
 
             <span className="text-sm text-muted-foreground">
-              {filteredOpenings.length}{" "}
-              {filteredOpenings.length === 1 ? "result" : "results"}
+              {filteredOpenings.length} on this page · {totalOpenings} total
             </span>
           </div>
 
@@ -246,9 +282,14 @@ export default function VendorOpeningsPage() {
           {/* Openings table */}
           {filteredOpenings.length > 0 && (
             <div className="overflow-hidden rounded-2xl bg-[color:var(--tertiary)]">
-              <div className="overflow-x-auto">
+              <div
+                ref={tableScrollRef}
+                className="overflow-x-auto"
+                onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+                style={isVirtualized ? { maxHeight: VIRTUAL_VIEWPORT_HEIGHT, overflowY: "auto" } : undefined}
+              >
                 <table className="w-full min-w-[850px] text-left">
-                  <thead className="border-b border-border/60 bg-background/40">
+                  <thead className="sticky top-0 z-10 border-b border-border/60 bg-background/95 backdrop-blur">
                     <tr className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       <th scope="col" className="px-5 py-4">Title</th>
                       <th scope="col" className="px-5 py-4">Location</th>
@@ -259,12 +300,17 @@ export default function VendorOpeningsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/50">
-                    {filteredOpenings.map((opening) => (
-                      <tr key={opening.id} className="transition hover:bg-background/30">
+                    {isVirtualized && firstVisibleIndex > 0 && (
+                      <tr aria-hidden="true">
+                        <td colSpan={6} style={{ height: firstVisibleIndex * VIRTUAL_ROW_HEIGHT, padding: 0 }} />
+                      </tr>
+                    )}
+                    {renderedOpenings.map((opening) => (
+                      <tr key={opening.id} style={isVirtualized ? { height: VIRTUAL_ROW_HEIGHT } : undefined} className="transition hover:bg-background/30">
                         <th scope="row" className="max-w-xs px-5 py-5 font-semibold text-foreground">
                           <Link
                             href={`/vendor/openings/${encodeURIComponent(opening.id)}`}
-                            className="transition hover:text-primary hover:underline"
+                            className="block line-clamp-2 leading-5 transition hover:text-primary hover:underline"
                           >
                             {opening.title}
                           </Link>
@@ -300,11 +346,28 @@ export default function VendorOpeningsPage() {
                         </td>
                       </tr>
                     ))}
+                    {isVirtualized && lastVisibleIndex < filteredOpenings.length && (
+                      <tr aria-hidden="true">
+                        <td colSpan={6} style={{ height: (filteredOpenings.length - lastVisibleIndex) * VIRTUAL_ROW_HEIGHT, padding: 0 }} />
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
             </div>
           )}
+          <PaginationControls
+            page={page}
+            totalPages={totalPages}
+            total={totalOpenings}
+            pageSize={PAGE_SIZE}
+            onPageChange={(nextPage) => {
+              setPage(nextPage);
+              resetTableScroll();
+            }}
+            disabled={isLoading}
+            label="openings"
+          />
         </section>
       </div>
     </main>
