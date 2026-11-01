@@ -109,7 +109,7 @@ const toolCallResponse = {
       makeToolCall("parse", "parse_resume"),
       makeToolCall("features", "extract_candidate_features", {
         experienceYears: 5,
-        skills: ["NodeJS", "Python"],
+        skills: ["NodeJS", "Python", ...Array.from({ length: 78 }, (_, index) => `Additional Skill ${index + 1}`), ""],
         location: "New York",
         education: ["BSc Computer Science"],
         keywords: ["backend", "API"],
@@ -192,6 +192,8 @@ describe("vendor profile submission through recommendation to manager shortlist"
     expect(analyzed.recommendationStatus).toBe("COMPLETED");
     expect(analyzed.recommended).toBe(true);
     expect(analyzed.recommendationScore).toBe(1);
+    expect(analyzed.recommendationMetadata.checkpoints.features.skills).toHaveLength(80);
+    expect(analyzed.recommendationMetadata.checkpoints.features.skills).not.toContain("");
     expect(analyzed.recommendationConfidence).toBe(0.94);
     expect(analyzed.recommendationTokenUsage).toBe(160);
     expect(analyzed.recommendationMetadata.toolTrace.map((step: any) => step.tool)).toEqual([

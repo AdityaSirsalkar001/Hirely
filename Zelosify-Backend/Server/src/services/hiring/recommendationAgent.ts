@@ -12,6 +12,7 @@ const MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-20b";
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const MAX_RESUME_BYTES = 20 * 1024 * 1024;
 const MAX_RESUME_TEXT = 12000;
+const MAX_CANDIDATE_SKILLS = 120;
 const ANALYSIS_QUEUE_POLL_MS = 2000;
 const STALE_ANALYSIS_MS = 10 * 60000;
 let groqCooldownUntil = 0;
@@ -22,7 +23,7 @@ const candidateFeaturesSchema = {
     required: ["experienceYears", "skills", "location", "education", "keywords"],
     properties: {
         experienceYears: { type: "number", minimum: 0, maximum: 80 },
-        skills: { type: "array", items: { type: "string", minLength: 1, maxLength: 80 }, maxItems: 30 },
+        skills: { type: "array", items: { type: "string" } },
         location: { type: "string", maxLength: 180 },
         education: { type: "array", items: { type: "string", maxLength: 300 }, maxItems: 5 },
         keywords: { type: "array", items: { type: "string", maxLength: 80 }, maxItems: 20 },
@@ -43,8 +44,8 @@ const normalizedSkillsValidator = ajv.compile({
     additionalProperties: false,
     required: ["candidateSkills", "requiredSkills"],
     properties: {
-        candidateSkills: { type: "array", items: { type: "string", minLength: 1, maxLength: 80 }, maxItems: 60 },
-        requiredSkills: { type: "array", items: { type: "string", minLength: 1, maxLength: 80 }, maxItems: 60 },
+        candidateSkills: { type: "array", items: { type: "string", minLength: 1, maxLength: 80 }, maxItems: MAX_CANDIDATE_SKILLS },
+        requiredSkills: { type: "array", items: { type: "string", minLength: 1, maxLength: 80 }, maxItems: 120 },
     },
 });
 const scoreResultValidator = ajv.compile({
@@ -78,7 +79,7 @@ const scoreResultValidator = ajv.compile({
 const toolOutputValidators = {
     parse_resume: ajv.compile({ type: "object", additionalProperties: false, required: ["text"], properties: { text: { type: "string", minLength: 1, maxLength: MAX_RESUME_TEXT } } }),
     extract_candidate_features: ajv.compile({ type: "object", additionalProperties: false, required: ["candidateFeatures"], properties: { candidateFeatures: candidateFeaturesSchema } }),
-    normalize_skills: ajv.compile({ type: "object", additionalProperties: false, required: ["candidateSkills", "requiredSkills"], properties: { candidateSkills: { type: "array", items: { type: "string", minLength: 1, maxLength: 80 }, maxItems: 60 }, requiredSkills: { type: "array", items: { type: "string", minLength: 1, maxLength: 80 }, maxItems: 60 } } }),
+    normalize_skills: ajv.compile({ type: "object", additionalProperties: false, required: ["candidateSkills", "requiredSkills"], properties: { candidateSkills: { type: "array", items: { type: "string", minLength: 1, maxLength: 80 }, maxItems: MAX_CANDIDATE_SKILLS }, requiredSkills: { type: "array", items: { type: "string", minLength: 1, maxLength: 80 }, maxItems: 120 } } }),
     calculate_match_score: scoreResultValidator,
 };
 const toolArgumentValidators = {
@@ -89,7 +90,7 @@ const toolArgumentValidators = {
 };
 const recommendationTools = [
     { type: "function", function: { name: "parse_resume", description: "Securely retrieve the submitted PDF or PPTX from backend storage and extract sanitized text. Call before feature extraction.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
-    { type: "function", function: { name: "extract_candidate_features", description: "Extract candidate facts from the parsed resume only. Do not calculate any match scores or recommendation. Use 0 years only when no experience is evidenced, and return the required structured feature object.", parameters: { type: "object", additionalProperties: false, required: ["experienceYears", "skills", "location", "education", "keywords"], properties: { experienceYears: { type: "number", minimum: 0, maximum: 80 }, skills: { type: "array", items: { type: "string", minLength: 1, maxLength: 80 }, maxItems: 30 }, location: { type: "string", maxLength: 180 }, education: { type: "array", items: { type: "string", maxLength: 300 }, maxItems: 5 }, keywords: { type: "array", items: { type: "string", maxLength: 80 }, maxItems: 20 } } } } },
+    { type: "function", function: { name: "extract_candidate_features", description: "Extract candidate facts from the parsed resume only. Do not calculate any match scores or recommendation. Use 0 years only when no experience is evidenced and include relevant skill names without empty entries.", parameters: { type: "object", additionalProperties: false, required: ["experienceYears", "skills", "location", "education", "keywords"], properties: { experienceYears: { type: "number", minimum: 0, maximum: 80 }, skills: { type: "array", items: { type: "string" } }, location: { type: "string", maxLength: 180 }, education: { type: "array", items: { type: "string", maxLength: 300 }, maxItems: 5 }, keywords: { type: "array", items: { type: "string", maxLength: 80 }, maxItems: 20 } } } } },
     { type: "function", function: { name: "normalize_skills", description: "Normalize extracted candidate skills and required opening skills to canonical names. Call after feature extraction.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
     { type: "function", function: { name: "calculate_match_score", description: "Invoke the deterministic matching engine with the extracted candidate feature vector and opening requirements. Never calculate or guess scores yourself.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
 ];
@@ -347,7 +348,13 @@ async function runRecommendationAgent(initial, tokenUsage, state, toolTrace, tim
         },
         extract_candidate_features: async (args) => {
             if (!state.resumeText) throw new Error("Call parse_resume before extracting features");
-            state.features = args;
+            state.features = {
+                ...args,
+                skills: [...new Set((Array.isArray(args.skills) ? args.skills : [])
+                    .filter((skill) => typeof skill === "string")
+                    .map((skill) => skill.trim().slice(0, 80))
+                    .filter(Boolean))].slice(0, MAX_CANDIDATE_SKILLS),
+            };
             state.normalizedSkills = null;
             state.score = null;
             return { candidateFeatures: state.features };
@@ -686,7 +693,8 @@ export class RecommendationAgent {
                 : providerError && (!providerStatus || providerStatus === 408 || providerStatus === 425 || providerStatus === 429 || providerStatus >= 500)
                     ? "AI_PROVIDER_UNAVAILABLE"
                     : "AGENT_PROCESSING_FAILED";
-            const willRetryAutomatically = automaticRetryCount < 1;
+            const retryableProviderFailure = !providerError || !providerStatus || [408, 425, 429].includes(providerStatus) || providerStatus >= 500;
+            const willRetryAutomatically = automaticRetryCount < 1 && retryableProviderFailure;
             await prisma.$transaction(async (transaction) => {
                 await transaction.hiringProfile.updateMany({
                     where: { id: profileId, recommendationStatus: "PROCESSING" },
