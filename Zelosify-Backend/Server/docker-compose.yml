@@ -2,7 +2,9 @@ name: zelosify-recruit-backend
 
 services:
   postgres:
-    image: postgres:latest
+    # PostgreSQL 18 changes PGDATA and requires mounting /var/lib/postgresql.
+    # Keep the project’s existing /var/lib/postgresql/data volume compatible.
+    image: postgres:17
     container_name: recruit-postgres
     restart: unless-stopped
     environment:
@@ -11,6 +13,7 @@ services:
       POSTGRES_DB: zelosify_recruit_test
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres-init/01-create-app-db.sql:/docker-entrypoint-initdb.d/01-create-app-db.sql:ro
     ports:
       - "5445:5432" # Expose internal 5432 on host port 5445 (Port 5445 can be used to connect psql outside the container)
     networks:
@@ -62,7 +65,11 @@ services:
       - backend_net
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/auth/health"]
+      test:
+        - CMD
+        - /bin/bash
+        - -c
+        - "{ printf 'HEAD /auth/health/ready HTTP/1.0\\r\\n\\r\\n' >&0; grep 'HTTP/1.0 200'; } 0<>/dev/tcp/localhost/9000"
       interval: 30s
       timeout: 10s
       retries: 3

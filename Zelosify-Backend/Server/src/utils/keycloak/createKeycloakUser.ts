@@ -32,10 +32,12 @@ export async function createKeycloakUser(adminToken: string, userData: any) {
     console.log("✅ User created in Keycloak with ID:", userId);
     return { id: userId };
   } catch (error) {
-    console.error("❌ Error creating Keycloak user:", error);
     if (axios.isAxiosError(error)) {
-      console.error("Response data:", error.response?.data);
-      console.error("Status code:", error.response?.status);
+      // Do not log the Axios error object: it includes the submitted password
+      // and the admin Authorization header in its request configuration.
+      console.error("Keycloak user creation failed with status:", error.response?.status ?? "network error");
+    } else {
+      console.error("Keycloak user creation failed.");
     }
     throw error;
   }

@@ -11,8 +11,12 @@ export const verifyTOTP = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { totp } = req.body;
-    const tempToken = req.cookies.temp_token;
+    const totp =
+      typeof req.body?.totp === "string" ? req.body.totp.trim() : "";
+    const tempToken =
+      (typeof req.cookies?.temp_token === "string" && req.cookies.temp_token) ||
+      (typeof req.body?.tempToken === "string" && req.body.tempToken) ||
+      "";
 
     if (!tempToken || !totp) {
       res.status(400).json({ message: "Temp token and TOTP are required" });
@@ -27,7 +31,11 @@ export const verifyTOTP = async (
       return;
     }
 
-    const { userId, refreshToken } = decoded;
+    const userId = decoded.userId as string | undefined;
+    if (!userId) {
+      res.status(401).json({ message: "Invalid or expired temp token" });
+      return;
+    }
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -40,6 +48,7 @@ export const verifyTOTP = async (
         role: true,
         department: true,
         totpSecret: true,
+        refreshToken: true,
         tenant: {
           select: {
             tenantId: true,
@@ -55,13 +64,24 @@ export const verifyTOTP = async (
     }
 
     // Verify TOTP
-    const isValidTOTP = authenticator.verify({
-      token: totp,
-      secret: user.totpSecret!,
-    });
+    // Allow one adjacent 30-second interval for small clock differences.
+    const isValidTOTP = authenticator
+      .create({ ...authenticator.allOptions(), window: 1 })
+      .verify({ token: totp, secret: user.totpSecret! });
 
     if (!isValidTOTP) {
       res.status(401).json({ message: "Invalid TOTP code" });
+      return;
+    }
+
+    const refreshToken =
+      (typeof decoded.refreshToken === "string" && decoded.refreshToken) ||
+      user.refreshToken;
+
+    if (!refreshToken) {
+      res.status(401).json({
+        message: "Login session expired. Please enter your password again.",
+      });
       return;
     }
 
@@ -81,27 +101,35 @@ export const verifyTOTP = async (
       );
 
       // Set new access and refresh tokens
-      res.cookie("access_token", tokenResponse.data.access_token, {
+      const cookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        maxAge: 4 * 3600 * 1000, // 4 hours
+        sameSite: "lax" as const,
         path: "/",
+      };
+
+      res.cookie("access_token", tokenResponse.data.access_token, {
+        ...cookieOptions,
+        maxAge: 4 * 3600 * 1000, // 4 hours
       });
 
       res.cookie("refresh_token", tokenResponse.data.refresh_token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        ...cookieOptions,
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        path: "/",
       });
 
-      // Clear the temporary token
-      res.clearCookie("temp_token");
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          accessToken: tokenResponse.data.access_token,
+          refreshToken: tokenResponse.data.refresh_token,
+        },
+      });
+
+      res.clearCookie("temp_token", { ...cookieOptions });
 
       // Remove sensitive data before sending user info
-      const { totpSecret, ...userData } = user;
+      const { totpSecret, refreshToken: _refreshToken, ...userData } = user;
 
       // Send the final response
       res.json({

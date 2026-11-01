@@ -143,3 +143,30 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Local synthetic upload used for manual hiring workflow checks
+/synthetic-candidate-alex-example.pdf
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies and build output
+node_modules/
+.next/
+dist/
+build/
+
+# Local editor and temporary backup files
+*.backup
+*.backup-*
+
+# Temporary backups
+*.backup
+*.backup-*
+*.dark-backup
+
+# Never include environment files
+.env*
+**/.env*

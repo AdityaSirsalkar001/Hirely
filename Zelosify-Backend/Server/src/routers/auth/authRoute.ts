@@ -3,6 +3,7 @@ import { Router } from "express";
 import localAuthRoutes from "./local/localAuthRoutes.js";
 import { authenticateUser } from "../../middlewares/auth/authenticateMiddleware.js";
 import { getUserDetails } from "../../controllers/controllers.js";
+import { updateUserDetails } from "../../controllers/auth/user/getUserDetails.js";
 
 /**
  * Main authentication router that combines all authentication modules
@@ -27,5 +28,6 @@ router.use("/", localAuthRoutes);
  * This module handles user profile data retrieval and updates
  */
 router.get("/user", authenticateUser, getUserDetails);
+router.put("/user", authenticateUser, updateUserDetails);
 
 export default router;

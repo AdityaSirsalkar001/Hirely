@@ -4,6 +4,13 @@ import { Readable } from "stream";
 export abstract class StorageService {
   abstract getObjectURL(key: string): Promise<string>;
 
+  abstract getObjectMetadata(key: string): Promise<{
+    contentLength: number;
+    contentType?: string;
+  }>;
+
+  abstract deleteObject(key: string): Promise<void>;
+
   abstract getObjectStream(key: string): Promise<Readable>;
 
   abstract putObject(
@@ -14,5 +21,5 @@ export abstract class StorageService {
 
   abstract listObjects(prefix: string): Promise<any[]>;
 
-  abstract getUploadURL(key: string): Promise<string>;
+  abstract getUploadURL(key: string, contentType?: string, expiresIn?: number): Promise<string>;
 }

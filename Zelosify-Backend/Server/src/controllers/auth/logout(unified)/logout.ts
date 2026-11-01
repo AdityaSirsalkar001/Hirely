@@ -8,14 +8,24 @@ import axios from "axios";
 export const logout = asyncHandler(
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
+      const cookieOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict" as const,
+        path: "/",
+      };
+      // Clear cookies before any revocation attempt so an expired token or an
+      // unavailable identity provider cannot prevent the local logout.
+      res.clearCookie("access_token", cookieOptions);
+      res.clearCookie("refresh_token", cookieOptions);
+      res.clearCookie("temp_token", cookieOptions);
+      res.clearCookie("registration_token", cookieOptions);
+      res.clearCookie("role", { path: "/" });
+
       // Retrieve refresh token from cookies or header.
-      const refreshToken =
-        req.cookies.refresh_token || req.headers.authorization?.split(" ")[1];
+      const refreshToken = req.cookies?.refresh_token || req.headers.authorization?.split(" ")[1];
       if (!refreshToken) {
-        console.log("⚠️ No refresh token found, already logged out.");
-        res
-          .status(400)
-          .json({ message: "No refresh token found, already logged out" });
+        res.status(200).json({ message: "Logged out successfully" });
         return;
       }
       // Assuming that authentication middleware attaches req.user:
@@ -59,20 +69,6 @@ export const logout = asyncHandler(
       }
 
       // Clear cookies securely
-      res.clearCookie("access_token", {
-        httpOnly: true,
-        secure: true,
-        sameSite: "strict",
-        path: "/",
-      });
-      res.clearCookie("refresh_token", {
-        httpOnly: true,
-        secure: true,
-        sameSite: "strict",
-        path: "/",
-      });
-      console.log("Cookies cleared successfully.");
-
       res.status(200).json({ message: "Logged out successfully" });
       return;
     } catch (error) {

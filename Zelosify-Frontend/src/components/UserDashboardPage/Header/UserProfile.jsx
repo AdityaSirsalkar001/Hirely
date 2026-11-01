@@ -1,5 +1,12 @@
 import ProfileImage from "@/components/UI/ProfileImage";
-import { User, Bell, LogOut } from "lucide-react";
+import {
+  UserRound,
+  Bell,
+  LogOut,
+  Building2,
+  ShieldCheck,
+  ChevronRight,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { memo } from "react";
 import useAuth from "@/hooks/Auth/useAuth";
@@ -7,6 +14,7 @@ import useAuth from "@/hooks/Auth/useAuth";
 const UserProfile = memo(
   ({ toggleNotifications, isProfileOpen, toggleProfile, profileRef }) => {
     const router = useRouter();
+
     const {
       user,
       handleOpenSignoutConfirmation,
@@ -14,101 +22,185 @@ const UserProfile = memo(
       getUserHandle,
     } = useAuth();
 
-    // Get formatted display name and user handle
     const displayName = getDisplayName();
     const userHandle = getUserHandle();
 
+    const menuItemClass =
+      "group flex w-full items-center gap-3 px-5 py-3.5 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:bg-accent";
+
+    const iconContainerClass =
+      "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground transition-colors group-hover:bg-primary/10 group-hover:text-primary";
+
     return (
       <div className="relative" ref={profileRef}>
-        {/* Profile Button */}
+        {/* Profile trigger */}
         <button
           onClick={toggleProfile}
-          className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          className={`flex items-center gap-3 rounded-2xl px-3 py-2 transition-colors ${
+            isProfileOpen
+              ? "bg-accent"
+              : "hover:bg-accent"
+          }`}
           aria-label="Toggle profile menu"
-          tabIndex="0"
+          aria-expanded={isProfileOpen}
+          aria-haspopup="menu"
+          type="button"
         >
-          <div className="relative">
-            <ProfileImage className="w-8 h-8" />
-            {/* Blue Notification Dot on Top-Right of Profile Image */}
-            <span className="absolute top-0 right-0 w-2 h-2 bg-blue-500 rounded-full"></span>
-          </div>
+          <ProfileImage className="h-10 w-10 rounded-full" />
 
-          <span className="font-medium text-sm text-gray-700 dark:text-gray-200 hidden sm:inline">
+          <span className="hidden max-w-40 truncate text-sm font-semibold text-foreground sm:inline">
             {displayName}
           </span>
         </button>
 
+        {/* Dropdown */}
         {isProfileOpen && (
           <div
-            className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-900 rounded-md shadow-lg dark:shadow-gray-900/20 py-1 border border-border"
+            className="absolute right-0 z-50 mt-3 w-[min(350px,calc(100vw-24px))] overflow-hidden rounded-2xl bg-[color:var(--tertiary)] shadow-2xl shadow-black/20 ring-1 ring-border/70"
             role="menu"
+            aria-label="Profile menu"
           >
-            {/* Profile Info */}
-            <div className="px-4 py-2 text-sm">
-              <p className="font-medium text-gray-700 dark:text-gray-200">
-                {displayName}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                {userHandle}
-              </p>
-              {user?.role && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Role : {user.role.replace(/_/g, " ")}
-                </p>
-              )}
-              {user?.department && (
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Dept : {user.department}
-                </p>
-              )}
-              {user?.department && (
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Tenant : {user.tenant.companyName}
-                </p>
-              )}
-            </div>
-            <div className="border-t border-gray-100 dark:border-gray-800"></div>
+            {/* Profile information */}
+            <div className="p-5">
+              <div className="flex items-center gap-3">
+                <ProfileImage className="h-14 w-14 shrink-0 rounded-full" />
 
-            {/* Profile Settings */}
-            <button
-              onClick={() => {
-                router.push("/user/settings");
-              }}
-              className="flex w-full items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
-              role="menuitem"
-              tabIndex="0"
-            >
-              <User className="mr-2 h-4 w-4" />
-              <span>Profile</span>
-            </button>
+                <div className="min-w-0">
+                  <h3 className="truncate text-base font-bold text-foreground">
+                    {displayName}
+                  </h3>
 
-            {/* Notifications */}
-            <button
-              onClick={toggleNotifications}
-              className="flex w-full items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 relative"
-              role="menuitem"
-              tabIndex="0"
-            >
-              <div className="relative">
-                <Bell className="mr-2 h-4 w-4 text-gray-600 dark:text-gray-300" />
-                <span className="absolute -top-1 right-1 w-2 h-2 bg-blue-500 rounded-full"></span>
+                  <p className="mt-1 truncate text-sm text-muted-foreground">
+                    {userHandle}
+                  </p>
+                </div>
               </div>
-              <span>Notifications</span>
-            </button>
 
-            <div className="border-t border-gray-100 dark:border-gray-800"></div>
+              <div className="mt-5 space-y-3 rounded-xl bg-background/70 p-4">
+                {user?.role && (
+                  <div className="flex items-center gap-3">
+                    <ShieldCheck
+                      size={16}
+                      className="shrink-0 text-primary"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-[11px] text-muted-foreground">
+                        Account role
+                      </p>
+                      <p className="truncate text-sm font-medium text-foreground">
+                        {user.role.replace(/_/g, " ")}
+                      </p>
+                    </div>
+                  </div>
+                )}
 
-            {/* Logout */}
-            <button
-              onClick={handleOpenSignoutConfirmation}
-              className="flex w-full items-center px-4 py-2 text-sm cancel-red hover:bg-gray-100 dark:hover:bg-gray-800"
-              role="menuitem"
-              tabIndex="0"
-              aria-label="Sign out"
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Sign out</span>
-            </button>
+                {user?.department && (
+                  <div className="flex items-center gap-3">
+                    <Building2
+                      size={16}
+                      className="shrink-0 text-violet-500"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-[11px] text-muted-foreground">
+                        Department
+                      </p>
+                      <p className="truncate text-sm font-medium text-foreground">
+                        {user.department}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {user?.tenant?.companyName && (
+                  <div className="flex items-center gap-3">
+                    <Building2
+                      size={16}
+                      className="shrink-0 text-cyan-600 dark:text-cyan-400"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-[11px] text-muted-foreground">
+                        Organization
+                      </p>
+                      <p className="truncate text-sm font-medium text-foreground">
+                        {user.tenant.companyName}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Menu actions */}
+            <div className="border-t border-border/70 py-2">
+              <button
+                onClick={() => router.push("/user/settings")}
+                className={menuItemClass}
+                role="menuitem"
+                type="button"
+              >
+                <span className={iconContainerClass}>
+                  <UserRound size={19} />
+                </span>
+
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-foreground">
+                    Profile settings
+                  </span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    Manage your personal information
+                  </span>
+                </span>
+
+                <ChevronRight
+                  size={17}
+                  className="text-muted-foreground transition-transform group-hover:translate-x-1"
+                />
+              </button>
+
+              <button
+                onClick={toggleNotifications}
+                className={menuItemClass}
+                role="menuitem"
+                type="button"
+              >
+                <span className={iconContainerClass}>
+                  <Bell size={19} />
+                </span>
+
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-foreground">
+                    Notifications
+                  </span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    View your notifications
+                  </span>
+                </span>
+
+                <ChevronRight
+                  size={17}
+                  className="text-muted-foreground transition-transform group-hover:translate-x-1"
+                />
+              </button>
+            </div>
+
+            {/* Sign out */}
+            <div className="border-t border-border/70 p-2">
+              <button
+                onClick={handleOpenSignoutConfirmation}
+                className="group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-red-500/10 focus-visible:outline-none focus-visible:bg-red-500/10"
+                role="menuitem"
+                type="button"
+                aria-label="Sign out"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-red-600 transition-colors group-hover:bg-red-500/15 dark:text-red-400">
+                  <LogOut size={19} />
+                </span>
+
+                <span className="text-sm font-semibold text-red-600 dark:text-red-400">
+                  Sign out
+                </span>
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -117,4 +209,5 @@ const UserProfile = memo(
 );
 
 UserProfile.displayName = "UserProfile";
+
 export default UserProfile;

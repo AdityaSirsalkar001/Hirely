@@ -5,11 +5,14 @@ import {
   PutObjectCommand,
   GetObjectCommand,
   ListObjectsV2Command,
+  HeadObjectCommand,
+  DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Readable } from "stream";
 import * as dotenv from "dotenv";
 import { StorageService } from "../storageService.js";
+import { proxyAgent } from "../../../config/network/proxyAgent.js";
 
 dotenv.config();
 
@@ -32,6 +35,12 @@ export class AwsStorageService extends StorageService {
 
     this.s3Client = new S3Client({
       region,
+      requestHandler: {
+        httpAgent: proxyAgent,
+        httpsAgent: proxyAgent,
+        connectionTimeout: 8_000,
+        requestTimeout: 30_000,
+      },
       credentials: {
         accessKeyId,
         secretAccessKey,
@@ -99,6 +108,18 @@ export class AwsStorageService extends StorageService {
     }
   }
 
+  async getObjectMetadata(key: string): Promise<{ contentLength: number; contentType?: string }> {
+    const response = await this.s3Client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }));
+    if (typeof response.ContentLength !== "number") {
+      throw new Error("Object metadata is unavailable");
+    }
+    return { contentLength: response.ContentLength, contentType: response.ContentType };
+  }
+
+  async deleteObject(key: string): Promise<void> {
+    await this.s3Client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+  }
+
   async putObject(
     key: string,
     file: Buffer | Uint8Array | Blob | string,
@@ -133,7 +154,7 @@ export class AwsStorageService extends StorageService {
     }
   }
 
-  async getUploadURL(key: string): Promise<string> {
+  async getUploadURL(key: string, contentType = "application/pdf", expiresIn = 300): Promise<string> {
     try {
       console.log("[AWS S3] Generating upload URL for:", {
         bucket: this.bucket,
@@ -144,11 +165,11 @@ export class AwsStorageService extends StorageService {
       const command = new PutObjectCommand({
         Bucket: this.bucket,
         Key: key,
-        ContentType: "application/pdf",
+        ContentType: contentType,
       });
 
       const url = await getSignedUrl(this.s3Client, command, {
-        expiresIn: 3600,
+        expiresIn,
         signableHeaders: new Set(["host"]),
       });
 

@@ -31,8 +31,8 @@ export default function LandingNavbar() {
               {/* Logo */}
               <Link href="/" className="flex items-center">
                 <img
-                  src="/assets/logos/zelosify_Dark.png"
-                  alt="Zelosify"
+                  src="/assets/logos/hirely.svg"
+                  alt="Hirely"
                   className="h-8 w-auto"
                 />
               </Link>

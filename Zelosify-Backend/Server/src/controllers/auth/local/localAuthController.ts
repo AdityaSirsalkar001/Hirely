@@ -1,4 +1,5 @@
 import { register as registerImpl } from "./register/localRegister.js";
+import { verifyInitialTOTP as verifyInitialTOTPImpl } from "./register/verifyInitialTOTP.js";
 import { verifyLogin as verifyLoginImpl } from "./login/localLogin.js";
 import { verifyTOTP as verifyTOTPImpl } from "./login/verifyTOTP.js";
 import { Request, Response, NextFunction } from "express";
@@ -24,6 +25,21 @@ export const register = async (
       status: "error",
       error: "Internal server error",
       details: (error as Error).message,
+    });
+  }
+};
+
+export const verifyInitialTOTP = async (
+  req: Request,
+  res: Response,
+  next?: NextFunction
+) => {
+  try {
+    await verifyInitialTOTPImpl(req, res);
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: "Could not finish authenticator setup.",
     });
   }
 };

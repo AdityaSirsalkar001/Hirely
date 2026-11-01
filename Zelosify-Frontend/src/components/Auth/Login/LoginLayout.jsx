@@ -2,9 +2,6 @@
 
 import { useCallback, useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FcGoogle } from "react-icons/fc";
-import { BsMicrosoft } from "react-icons/bs";
-import SocialButton from "@/components/UI/SocialButton";
 import Link from "next/link";
 import axiosInstance from "@/utils/Axios/AxiosInstance";
 import useAuth from "@/hooks/Auth/useAuth";
@@ -34,6 +31,16 @@ export default function LoginLayout() {
   // Set error from Redux state - but filter out expected "no tokens" errors on login page
   useEffect(() => {
     if (authError && !authError.includes("No authentication tokens found")) {
+      if (
+        authError === "Temp token and TOTP are required" ||
+        authError.toLowerCase().includes("temp token")
+      ) {
+        setError({
+          general: "Session expired. Enter your password, then the 6-digit authenticator code.",
+        });
+        setLoginStage("credentials");
+        return;
+      }
       if (loginStage === "credentials") {
         setError({ general: authError });
       } else if (loginStage === "totp") {
@@ -81,7 +88,7 @@ export default function LoginLayout() {
             setLoginStage("totp");
           } else if (resultAction.message === "Authentication successful") {
             // Let middleware handle the role-based redirect
-            window.location.replace("/login"); // This will trigger middleware redirect
+            window.location.replace(resultAction.redirectTo || "/user"); // This will trigger middleware redirect
           }
         } catch (err) {
           console.error("Login verification error:", err);
@@ -108,7 +115,7 @@ export default function LoginLayout() {
             setTimeout(() => {
               // Let middleware handle the role-based redirect
               try {
-                window.location.replace("/login"); // This will trigger middleware redirect
+                window.location.replace(resultAction.redirectTo || "/user"); // This will trigger middleware redirect
               } catch (e) {
                 console.error("Redirect failed with replace, trying href:", e);
                 window.location.href = "/login"; // This will trigger middleware redirect
@@ -140,30 +147,6 @@ export default function LoginLayout() {
     [formData, loginStage, handleLogin, handleVerifyTOTP]
   );
 
-  const handleGoogleLogin = useCallback(async () => {
-    try {
-      const resp = await axiosInstance.get("/auth/google/login");
-
-      window.location.href = resp.data.authUrl;
-    } catch (err) {
-      console.error(err.message);
-
-      setError({ general: "Failed to initiate Google login" });
-    }
-  }, []);
-
-  const handleMicrosoftLogin = useCallback(async () => {
-    try {
-      const resp = await axiosInstance.get("/auth/microsoft/login");
-
-      window.location.href = resp.data.authUrl;
-    } catch (err) {
-      console.error(err.message);
-
-      setError({ general: "Failed to initiate Microsoft login" });
-    }
-  }, []);
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -192,32 +175,6 @@ export default function LoginLayout() {
         setShowPassword={setShowPassword}
         setLoginStage={setLoginStage}
       />
-
-      <div className="mt-6 space-y-4">
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300 dark:border-gray-700"></div>
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
-              Or continue with
-            </span>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <SocialButton
-            icon={FcGoogle}
-            onClick={handleGoogleLogin}
-            label="Sign in with Google"
-          />
-          <SocialButton
-            icon={BsMicrosoft}
-            onClick={handleMicrosoftLogin}
-            label="Sign in with Microsoft"
-          />
-        </div>
-      </div>
 
       <div className="mt-6 text-center">
         <p className="text-sm text-gray-600 dark:text-gray-400">

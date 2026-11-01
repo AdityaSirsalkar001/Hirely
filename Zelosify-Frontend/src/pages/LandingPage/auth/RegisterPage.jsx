@@ -2,10 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { motion } from "framer-motion";
-import { FcGoogle } from "react-icons/fc";
-import { BsMicrosoft } from "react-icons/bs";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
-import SocialButton from "@/components/UI/SocialButton";
 import axiosInstance from "@/utils/Axios/AxiosInstance";
 import Link from "next/link";
 
@@ -20,7 +17,7 @@ export default function Register() {
     phoneNumber: "",
     companyName: "",
     department: "",
-    role: "USER",
+    role: "",
   });
 
   const [error, setError] = useState("");
@@ -103,24 +100,6 @@ export default function Register() {
     [formData, validateForm]
   );
 
-  const handleGoogleLogin = useCallback(async () => {
-    try {
-      const resp = await axiosInstance.get("/auth/google/login");
-      window.location.href = resp.data.authUrl;
-    } catch (err) {
-      setError("Failed to initiate Google login");
-    }
-  }, []);
-
-  const handleMicrosoftLogin = useCallback(async () => {
-    try {
-      const resp = await axiosInstance.get("/auth/microsoft/login");
-      window.location.href = resp.data.authUrl;
-    } catch (err) {
-      setError("Failed to initiate Microsoft login");
-    }
-  }, []);
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -129,8 +108,8 @@ export default function Register() {
     >
       <div className="flex flex-col justify-center items-center gap-2">
         <img
-          src={"/assets/logos/zelosify_Dark.png"}
-          alt="Zelosify Dark Logo"
+          src={"/assets/logos/hirely.svg"}
+          alt="Hirely logo"
           width={120}
           height={40}
         />
@@ -295,14 +274,17 @@ export default function Register() {
             Role
           </label>
           <select
-            name="role"
-            onChange={handleChange}
+              name="role"
+              required
+              value={formData.role}
+              onChange={handleChange}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent dark:bg-gray-900 dark:text-white transition-colors duration-200"
           >
-            <option value="USER">User</option>
-            <option value="MANAGER">Manager</option>
-            <option value="SENIOR_MANAGER">Senior Manager</option>
-            <option value="ADMIN">Admin</option>
+            <option value="" disabled>
+              Choose a role
+            </option>
+            <option value="IT_VENDOR">IT Vendor</option>
+            <option value="HIRING_MANAGER">Hiring Manager</option>
           </select>
         </div>
 
@@ -316,32 +298,6 @@ export default function Register() {
           {isLoading ? "Loading..." : "Create Account"}
         </motion.button>
       </form>
-
-      <div className="mt-6 space-y-4">
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300 dark:border-gray-700"></div>
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
-              Or continue with
-            </span>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <SocialButton
-            icon={FcGoogle}
-            onClick={handleGoogleLogin}
-            label="Sign up with Google"
-          />
-          <SocialButton
-            icon={BsMicrosoft}
-            onClick={handleMicrosoftLogin}
-            label="Sign up with Microsoft"
-          />
-        </div>
-      </div>
 
       <div className="mt-6 text-center">
         <p className="text-sm text-gray-600 dark:text-gray-400">

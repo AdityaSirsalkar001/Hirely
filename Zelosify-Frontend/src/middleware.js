@@ -56,8 +56,14 @@ export function middleware(request) {
     return response;
   }
 
+  // Keep the QR setup page reachable for accounts created by the legacy flow,
+  // which may already have access and refresh cookies before TOTP is verified.
+  if (path === "/setup-totp") {
+    return response;
+  }
+
   // Redirect logged in users away from public pages except during registration
-  if (isPublicPath && isAuthenticated) {
+  if (isPublicPath && isAuthenticated && path !== "/login") {
     // Role-based redirection
     console.log("User Role = ", userRole);
     switch (userRole) {
@@ -74,8 +80,11 @@ export function middleware(request) {
         );
 
       case "IT_VENDOR":
-        console.log(`Redirecting IT_VENDOR to /vendor/payments`);
-        return NextResponse.redirect(new URL("/vendor/payments", request.url));
+        console.log(`Redirecting IT_VENDOR to /vendor/openings`);
+        return NextResponse.redirect(new URL("/vendor/openings", request.url));
+
+      case "HIRING_MANAGER":
+        return NextResponse.redirect(new URL("/hiring-manager/openings", request.url));
 
       default:
         // Fallback for unknown roles or missing role - redirect to base user page
@@ -89,7 +98,44 @@ export function middleware(request) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
+  if (isAuthenticated) {
+    // Keep the former manager URL working as a bookmark while moving the UI
+    // to the route specified by the assignment.
+    if (path === "/business-user/hiring") {
+      const destination =
+        userRole === "HIRING_MANAGER"
+          ? "/hiring-manager/openings"
+          : getRoleHome(userRole);
+      return NextResponse.redirect(new URL(destination, request.url));
+    }
+
+    const requiredRole = path.startsWith("/vendor")
+      ? "IT_VENDOR"
+      : path.startsWith("/hiring-manager")
+        ? "HIRING_MANAGER"
+        : path.startsWith("/business-user")
+          ? "BUSINESS_USER"
+          : null;
+
+    if (requiredRole && userRole !== requiredRole) {
+      return NextResponse.redirect(new URL(getRoleHome(userRole), request.url));
+    }
+  }
+
   return response;
+}
+
+function getRoleHome(role) {
+  switch (role) {
+    case "IT_VENDOR":
+      return "/vendor/openings";
+    case "HIRING_MANAGER":
+      return "/hiring-manager/openings";
+    case "BUSINESS_USER":
+      return "/business-user/digital-initiative";
+    default:
+      return "/user";
+  }
 }
 
 // Configure middleware to run only on specific paths
@@ -99,6 +145,7 @@ export const config = {
     "/user/:path*",
     "/vendor/:path*",
     "/business-user/:path*",
+    "/hiring-manager/:path*",
 
     // Public paths for redirect logic
     "/login",

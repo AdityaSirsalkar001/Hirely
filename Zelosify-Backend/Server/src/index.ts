@@ -1,6 +1,6 @@
+import "dotenv/config";
 // Core Express and Node.js libraries
 import express from "express";
-import dotenv from "dotenv";
 
 // Authentication and session management
 import { setupKeycloakConfig } from "./config/keycloak/keycloak.js";
@@ -20,11 +20,20 @@ import awsRouter from "./routers/aws/awsRoute.js";
 import vendorRoutes from "./routers/vendor/vendorRoutes.js";
 import hiringManagerRoutes from "./routers/hiring/hiringManagerRoutes.js";
 
-// Load environment variables from .env file
-dotenv.config();
-
 // Initialize Express application
 const app = express();
+
+// Ensure local Keycloak traffic bypasses any proxy configured on the host.
+const noProxyHosts = new Set(
+  (process.env.NO_PROXY || "")
+    .split(",")
+    .map((host) => host.trim())
+    .filter(Boolean)
+);
+noProxyHosts.add("localhost");
+noProxyHosts.add("127.0.0.1");
+process.env.NO_PROXY = [...noProxyHosts].join(",");
+process.env.no_proxy = process.env.NO_PROXY;
 
 /**
  * Main server initialization function
@@ -47,7 +56,14 @@ async function startServer() {
     // Allows requests from specified frontend origins during development
     app.use(
       cors({
-        origin: ["http://localhost:5173"],
+        // The frontend may be opened as localhost or 127.0.0.1, and Next's
+        // dev server can fall back to another port when 5173 is occupied.
+        origin: [
+          process.env.FRONTEND_URL || "http://localhost:5173",
+          "http://127.0.0.1:5173",
+          "http://localhost:5174",
+          "http://127.0.0.1:5174",
+        ],
         credentials: true,
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
@@ -82,14 +98,10 @@ async function startServer() {
     // Hiring manager routes
     app.use("/api/v1/hiring-manager", hiringManagerRoutes);
 
-    // Request debugging middleware - logs all incoming requests
+    // Keep request logs free of headers and bodies, which may contain credentials,
+    // session cookies, access tokens, or uploaded candidate data.
     app.use((req, _, next) => {
-      console.log("[Server] Incoming request:", {
-        method: req.method,
-        path: req.path,
-        body: req.body,
-        headers: req.headers,
-      });
+      console.log(`[Server] ${req.method} ${req.path}`);
       next();
     });
 

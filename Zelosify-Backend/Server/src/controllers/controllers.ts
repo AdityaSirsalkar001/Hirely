@@ -2,6 +2,7 @@
 export {
   register,
   verifyLogin,
+  verifyInitialTOTP,
   verifyTOTP,
 } from "./auth/local/localAuthController.js";
 

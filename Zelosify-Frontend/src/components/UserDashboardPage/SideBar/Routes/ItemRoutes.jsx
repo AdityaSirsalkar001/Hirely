@@ -1,29 +1,9 @@
-import {
-  LogOut,
-  Settings,
-  CreditCard,
-  Headset,
-  Smile,
-  Scale3DIcon,
-  Frown,
-} from "lucide-react";
+import { LogOut, Settings, BriefcaseBusiness, Headset, Scale3DIcon } from "lucide-react";
 import { MdDataUsage } from "react-icons/md";
 
 // Role-based menu items
 const getOverviewItemsByRole = (role) => {
   switch (role) {
-    // For VENDOR_MANAGER role
-    case "VENDOR_MANAGER":
-      return [
-        {
-          title: "Smile",
-          href: "#",
-          icon: Smile,
-          hasSubmenu: true,
-          submenu: [{ title: "Sad", href: "/user", icon: Frown }],
-        },
-      ];
-
     // For BUSINESS_USER role
     case "BUSINESS_USER":
       return [
@@ -32,17 +12,17 @@ const getOverviewItemsByRole = (role) => {
           href: "/business-user/digital-initiative",
           icon: MdDataUsage,
         },
-        {
-          title: "Dummy Page 1",
-          href: "/business-user/dummy-page-1",
-          icon: Scale3DIcon,
-        },
       ];
 
     // For IT_VENDOR
     case "IT_VENDOR":
       return [
-        { title: "Payments", href: "/vendor/payments", icon: CreditCard },
+        { title: "Opportunities", href: "/vendor/openings", icon: BriefcaseBusiness },
+      ];
+
+    case "HIRING_MANAGER":
+      return [
+        { title: "Candidate Review", href: "/hiring-manager/openings", icon: Scale3DIcon },
       ];
 
     default:

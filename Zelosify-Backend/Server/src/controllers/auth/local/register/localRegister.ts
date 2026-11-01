@@ -3,6 +3,7 @@ import asyncHandler from "../../../../utils/handler/asyncHandler.js";
 import { RegisterRequest, RegisterResponse } from "../../../../types/auth.js";
 import prisma from "../../../../config/prisma/prisma.js";
 import QRCode from "qrcode";
+import jwt from "jsonwebtoken";
 import { getAdminToken } from "../../../../utils/keycloak/getAdminToken.js";
 import { authenticator } from "otplib";
 import { createKeycloakUser } from "../../../../utils/keycloak/createKeycloakUser.js";
@@ -31,6 +32,7 @@ export const register = asyncHandler(
         lastName,
         phoneNumber,
         tenantId,
+        companyName,
         department,
         role,
       } = req.body;
@@ -42,7 +44,7 @@ export const register = asyncHandler(
         !firstName ||
         !lastName ||
         !phoneNumber ||
-        !tenantId ||
+        (!tenantId && !companyName?.trim()) ||
         !department ||
         !role
       ) {
@@ -59,18 +61,36 @@ export const register = asyncHandler(
         return;
       }
 
-      // Verify that the tenantId exists in the database
-      const tenant = await prisma.tenants.findUnique({
-        where: { tenantId },
-      });
-      if (!tenant) {
-        res.status(400).json({ message: "Invalid tenant ID." });
+      // Public signup may only create accounts for the two assignment workflows.
+      if (
+        !isValidRole(role) ||
+        !new Set<Role>([Role.IT_VENDOR, Role.HIRING_MANAGER]).has(role as Role)
+      ) {
+        res.status(400).json({ message: "Choose a supported signup role." });
         return;
       }
 
-      // Validate the provided role
-      if (!isValidRole(role)) {
-        res.status(400).json({ message: "Invalid role provided." });
+      // Self-service signup can join an existing company or create its tenant.
+      const tenant = tenantId
+        ? await prisma.tenants.findUnique({ where: { tenantId } })
+        : await prisma.tenants
+            .findFirst({
+              where: {
+                companyName: {
+                  equals: companyName!.trim(),
+                  mode: "insensitive",
+                },
+              },
+            })
+            .then(
+              (existing) =>
+                existing ??
+                prisma.tenants.create({
+                  data: { companyName: companyName!.trim() },
+                })
+            );
+      if (!tenant) {
+        res.status(400).json({ message: "Invalid tenant ID." });
         return;
       }
 
@@ -140,7 +160,7 @@ export const register = asyncHandler(
           phoneNumber,
           department,
           role: role as Role,
-          tenantId,
+          tenantId: tenant.tenantId,
           externalId: keycloakUser.id,
           totpSecret,
           provider: AuthProvider.KEYCLOAK,
@@ -174,25 +194,22 @@ export const register = asyncHandler(
         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );
 
-      // Set access token cookie
-      res.cookie("access_token", tokenResponse.data.access_token, {
+      // Keep the user in the TOTP setup flow until the QR code is verified.
+      const registrationToken = jwt.sign(
+        {
+          userId: user.id,
+          refreshToken: tokenResponse.data.refresh_token,
+        },
+        process.env.JWT_SECRET!,
+        { expiresIn: "1h" }
+      );
+      res.cookie("registration_token", registrationToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
-        maxAge: 3600 * 1000, // 1 hour
+        maxAge: 60 * 60 * 1000,
         path: "/",
       });
-
-      // Set refresh token cookie
-      if (tokenResponse.data.refresh_token) {
-        res.cookie("refresh_token", tokenResponse.data.refresh_token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "strict",
-          maxAge: 24 * 60 * 60 * 1000, // 24 hours
-          path: "/",
-        });
-      }
 
       // Generate QR code for TOTP
       const otpAuthUrl = authenticator.keyuri(email, REALM_NAME, totpSecret);
@@ -221,7 +238,12 @@ export const register = asyncHandler(
 
       res.status(201).json(response);
     } catch (error) {
-      console.error("Registration error:", error);
+      // Avoid logging the raw Axios error because its request config can include
+      // credentials submitted during registration.
+      console.error(
+        "Registration failed with status:",
+        axios.isAxiosError(error) ? error.response?.status ?? "network error" : "unexpected error"
+      );
       res.status(500).json({ message: "Error registering user" });
     }
   }

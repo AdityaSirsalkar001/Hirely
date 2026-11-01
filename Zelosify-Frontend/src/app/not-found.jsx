@@ -10,8 +10,8 @@ export default function NotFound() {
           {/* light logo */}
           <img
             onClick={() => router.push("/")}
-            src={"/assets/logos/zelosify_Dark.png"}
-            alt="Zelosify Light Logo"
+            src={"/assets/logos/hirely.svg"}
+            alt="Hirely logo"
             width={120}
             height={40}
             className="block dark:hidden hover:cursor-pointer object-contain"
@@ -19,8 +19,8 @@ export default function NotFound() {
           {/* dark logo */}
           <img
             onClick={() => router.push("/")}
-            src={"/assets/logos/main-logo.png"}
-            alt="Zelosify Dark Logo"
+            src={"/assets/logos/hirely-dark.svg"}
+            alt="Hirely logo"
             width={120}
             height={40}
             className="hidden dark:block hover:cursor-pointer object-contain"
@@ -50,7 +50,7 @@ export default function NotFound() {
 
       <footer className="py-4 px-4 border-t border-gray-200 dark:border-gray-700 relative z-10">
         <div className="max-w-7xl mx-auto text-center text-sm text-gray-500 dark:text-gray-400">
-          © {new Date().getFullYear()} Zelosify. All rights reserved.
+          © {new Date().getFullYear()} Hirely. All rights reserved.
         </div>
       </footer>
 
