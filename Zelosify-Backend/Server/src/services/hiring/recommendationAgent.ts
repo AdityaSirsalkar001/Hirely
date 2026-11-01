@@ -7,6 +7,7 @@ import { inflateRawSync } from "zlib";
 import prisma from "../../config/prisma/prisma.js";
 import { createStorageService } from "../storage/storageFactory.js";
 import { normalizeSkillsTool } from "./tools/skillNormalizationTool.js";
+import { calculateMatchScore } from "./tools/deterministicMatchingTool.js";
 const MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-20b";
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const MAX_RESUME_BYTES = 20 * 1024 * 1024;
@@ -324,62 +325,6 @@ async function groqChat(messages, options = {}) {
         }
     }
 }
-function calculateMatchScore({ features, normalizedSkills, opening }) {
-    const requiredSkills = normalizedSkills.requiredSkills;
-    const candidateSkills = normalizedSkills.candidateSkills;
-    const matchedSkills = requiredSkills.filter((skill) => candidateSkills.includes(skill));
-    const missingSkills = requiredSkills.filter((skill) => !candidateSkills.includes(skill));
-    const skillMatchScore = requiredSkills.length ? matchedSkills.length / requiredSkills.length : 0;
-
-    const experienceMin = Number(opening.experienceMin ?? 0);
-    const experienceMax = opening.experienceMax == null ? null : Number(opening.experienceMax);
-    const experienceYears = Number(features.experienceYears);
-    const experienceMatchScore = experienceYears < experienceMin
-        ? 0
-        : experienceMax === null || experienceYears <= experienceMax
-            ? 1
-            : 0.8;
-
-    const openingLocation = String(opening.location ?? "").trim();
-    const candidateLocation = String(features.location ?? "").trim();
-    const isRemote = /\bremote\b/i.test(openingLocation);
-    const locationMatchScore = isRemote || !openingLocation || openingLocation.toLowerCase() === candidateLocation.toLowerCase()
-        ? 1
-        : 0.5;
-
-    const finalScore = (0.5 * skillMatchScore) + (0.3 * experienceMatchScore) + (0.2 * locationMatchScore);
-    return {
-        skillMatchScore,
-        experienceMatchScore,
-        locationMatchScore,
-        finalScore,
-        recommended: finalScore >= 0.75,
-        decision: finalScore >= 0.75 ? "RECOMMENDED" : finalScore >= 0.5 ? "BORDERLINE" : "NOT_RECOMMENDED",
-        evidence: {
-            matchedSkills,
-            missingSkills,
-            requiredSkillCount: requiredSkills.length,
-            experienceYears,
-            experienceMin,
-            experienceMax,
-            experienceAssessment: experienceYears < experienceMin
-                ? `Below the ${experienceMin}-year minimum`
-                : experienceMax === null
-                    ? `Meets the ${experienceMin}-year minimum; no maximum is set`
-                    : experienceYears <= experienceMax
-                        ? `Within the ${experienceMin}-${experienceMax}-year range`
-                        : `Above the ${experienceMax}-year maximum`,
-            locationAssessment: isRemote
-                ? "Remote opening; candidate location receives full credit"
-                : !openingLocation
-                    ? "No location constraint is specified"
-                    : locationMatchScore === 1
-                        ? `Candidate location matches ${openingLocation}`
-                        : `Candidate location ${candidateLocation || "is not listed"} does not match ${openingLocation}`,
-        },
-    };
-}
-
 async function runRecommendationAgent(initial, tokenUsage, state, toolTrace, timings, saveProgress) {
     const opening = initial.opening;
     const messages = [
@@ -768,4 +713,5 @@ export class RecommendationAgent {
     }
 }
 export const recommendationAgent = new RecommendationAgent();
-recommendationAgent.startWorker();
+// Keep imports side-effect free in test runs so each suite controls when jobs execute.
+if (process.env.NODE_ENV !== "test") recommendationAgent.startWorker();

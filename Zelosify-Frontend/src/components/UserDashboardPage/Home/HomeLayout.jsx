@@ -23,7 +23,7 @@ export default function HomeLayout() {
   const primaryHref = isVendor
     ? "/vendor/openings"
     : isHiringManager
-    ? "/business-user/hiring"
+    ? "/hiring-manager/openings"
     : "/user/settings";
 
   const primaryTitle = isVendor
@@ -60,7 +60,7 @@ export default function HomeLayout() {
               </p>
 
               <Link
-                href="/business-user/hiring"
+                href="/hiring-manager/openings"
                 className="mt-8 inline-flex items-center gap-3 rounded-xl bg-white px-6 py-3.5 text-sm font-bold text-blue-950 shadow-lg shadow-blue-950/20 transition duration-200 hover:-translate-y-0.5 hover:bg-cyan-50"
               >
                 Go to candidate review
@@ -100,7 +100,7 @@ export default function HomeLayout() {
           </div>
 
           <Link
-            href="/business-user/hiring"
+            href="/hiring-manager/openings"
             className="group relative flex flex-col gap-7 overflow-hidden rounded-2xl bg-gradient-to-r from-blue-50 via-indigo-50 to-violet-50 p-6 transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-950/10 dark:from-blue-950/50 dark:via-indigo-950/40 dark:to-violet-950/40 sm:flex-row sm:items-center sm:justify-between sm:p-8"
           >
             <div className="flex items-start gap-5">

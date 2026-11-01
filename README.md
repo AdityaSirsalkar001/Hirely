@@ -92,7 +92,8 @@ Install dependencies and start the frontend:
 
 | Section | Route |
 |---|---|
-| Hiring Manager | `/business-user/hiring` |
+| Hiring Manager openings | `/hiring-manager/openings` |
+| Hiring Manager opening details | `/hiring-manager/openings/:id` |
 | Vendor Opportunities | `/vendor/openings` |
 | User Settings | `/user/settings` |
 | Support | `/user/support` |
