@@ -146,6 +146,36 @@ export async function createHiringManagerOpening(req: Request, res: Response) {
   return res.status(201).json({ data: { ...opening, profilesCount: 0 } });
 }
 
+export async function deleteHiringManagerOpening(req: Request, res: Response) {
+  const current = identity(req as HiringRequest);
+  if (!current) return res.status(403).json({ message: "A tenant-bound user is required" });
+
+  const opening = await prisma.opening.findFirst({
+    where: { id: req.params.id, hiringManagerId: current.userId, tenantId: current.tenantId },
+    select: { id: true, hiringProfiles: { select: { id: true, s3Key: true } } },
+  });
+  if (!opening) return res.status(404).json({ message: "Opening not found" });
+
+  await prisma.$transaction(async (transaction) => {
+    await transaction.hiringProfile.deleteMany({ where: { openingId: opening.id } });
+    await transaction.opening.delete({ where: { id: opening.id } });
+  });
+
+  if (opening.hiringProfiles.length) {
+    try {
+      const { createStorageService } = await import("../../services/storage/storageFactory.js");
+      const storage = createStorageService();
+      const cleanup = await Promise.allSettled(opening.hiringProfiles.map(({ s3Key }) => storage.deleteObject(s3Key)));
+      const failedDeletes = cleanup.filter((result) => result.status === "rejected").length;
+      if (failedDeletes) console.error(JSON.stringify({ event: "deleted_opening_file_cleanup_failed", openingId: opening.id, failedDeletes }));
+    } catch (error) {
+      console.error(JSON.stringify({ event: "deleted_opening_file_cleanup_failed", openingId: opening.id, message: error instanceof Error ? error.message : "unknown error" }));
+    }
+  }
+
+  return res.status(204).send();
+}
+
 export async function listHiringManagerProfiles(req: Request, res: Response) {
   const current = identity(req as HiringRequest);
   if (!current) return res.status(403).json({ message: "A tenant-bound user is required" });
@@ -176,16 +206,35 @@ export async function listHiringManagerProfiles(req: Request, res: Response) {
         recommendationLatencyMs: true,
         recommendationConfidence: true,
         recommendedAt: true,
+        recommendationMetadata: true,
       },
     }),
     prisma.hiringProfile.count({ where }),
   ]);
 
   return res.json({
-    data: profiles.map((profile) => ({
-      ...profile,
-      recommendationLabel: recommendationLabel(profile.recommendationScore),
-    })),
+    data: profiles.map((profile) => {
+      const metadata = profile.recommendationMetadata;
+      const metadataRecord = metadata && typeof metadata === "object" && !Array.isArray(metadata)
+        ? metadata as Record<string, unknown>
+        : null;
+      const rawBreakdown = metadataRecord?.scoreBreakdown;
+      const breakdown = rawBreakdown && typeof rawBreakdown === "object" && !Array.isArray(rawBreakdown)
+        ? rawBreakdown as Record<string, unknown>
+        : null;
+      const score = (key: string) => typeof breakdown?.[key] === "number" ? breakdown[key] : null;
+      const { recommendationMetadata: _privateMetadata, ...publicProfile } = profile;
+      return {
+        ...publicProfile,
+        recommendationLabel: recommendationLabel(profile.recommendationScore),
+        recommendationScoreBreakdown: breakdown ? {
+          skillMatchScore: score("skillMatchScore"),
+          experienceMatchScore: score("experienceMatchScore"),
+          locationMatchScore: score("locationMatchScore"),
+          finalScore: score("finalScore"),
+        } : null,
+      };
+    }),
     pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
   });
 }
@@ -254,7 +303,7 @@ export async function reanalyzeProfile(req: Request, res: Response) {
 
   await prisma.hiringProfile.update({
     where: { id: profile.id },
-    data: { recommendationStatus: "PENDING", recommendationError: null },
+    data: { recommendationStatus: "PENDING", recommendationError: null, recommendationMetadata: { automaticRetryCount: 0 } },
   });
   const { recommendationAgent } = await import("../../services/hiring/recommendationAgent.js");
   recommendationAgent.enqueue(profile.id);

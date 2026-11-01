@@ -19,6 +19,13 @@ export const createManagerOpening = createAsyncThunk("hiring/createManagerOpenin
   catch (error) { return rejectWithValue(message(error, "Could not create the opening")); }
 });
 
+export const deleteManagerOpening = createAsyncThunk("hiring/deleteManagerOpening", async (openingId, { rejectWithValue }) => {
+  try {
+    await axiosInstance.delete(`/hiring-manager/openings/${encodeURIComponent(openingId)}`);
+    return openingId;
+  } catch (error) { return rejectWithValue(message(error, "Could not delete this opening")); }
+});
+
 export const fetchOpeningProfiles = createAsyncThunk("hiring/fetchOpeningProfiles", async (openingId, { rejectWithValue }) => {
   try { return { openingId, ...(await axiosInstance.get(`/hiring-manager/openings/${encodeURIComponent(openingId)}/profiles`)).data }; }
   catch (error) { return rejectWithValue(message(error, "Could not load submitted profiles")); }
@@ -53,6 +60,13 @@ const hiringSlice = createSlice({
         state.managerOpenings.unshift(created);
       })
       .addCase(createManagerOpening.rejected, (state, action) => { state.isSubmitting = false; state.error = action.payload; })
+      .addCase(deleteManagerOpening.pending, (state) => { state.isSubmitting = true; state.error = null; })
+      .addCase(deleteManagerOpening.fulfilled, (state, action) => {
+        state.isSubmitting = false;
+        state.managerOpenings = state.managerOpenings.filter((opening) => opening.id !== action.payload);
+        delete state.profilesByOpening[action.payload];
+      })
+      .addCase(deleteManagerOpening.rejected, (state, action) => { state.isSubmitting = false; state.error = action.payload; })
       .addCase(fetchOpeningProfiles.pending, (state) => { state.isLoading = true; state.error = null; })
       .addCase(fetchOpeningProfiles.fulfilled, (state, action) => { state.isLoading = false; state.profilesByOpening[action.payload.openingId] = action.payload.data || []; })
       .addCase(fetchOpeningProfiles.rejected, (state, action) => { state.isLoading = false; state.error = action.payload; })

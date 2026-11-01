@@ -12,6 +12,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Readable } from "stream";
 import * as dotenv from "dotenv";
 import { StorageService } from "../storageService.js";
+import { proxyAgent } from "../../../config/network/proxyAgent.js";
 
 dotenv.config();
 
@@ -34,6 +35,12 @@ export class AwsStorageService extends StorageService {
 
     this.s3Client = new S3Client({
       region,
+      requestHandler: {
+        httpAgent: proxyAgent,
+        httpsAgent: proxyAgent,
+        connectionTimeout: 8_000,
+        requestTimeout: 30_000,
+      },
       credentials: {
         accessKeyId,
         secretAccessKey,

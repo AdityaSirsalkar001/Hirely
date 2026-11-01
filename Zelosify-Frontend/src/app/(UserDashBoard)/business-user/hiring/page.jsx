@@ -18,6 +18,7 @@ import {
   FileText,
   Building2,
   Search,
+  Trash2,
 } from "lucide-react";
 import useHiring from "@/hooks/Hiring/useHiring";
 import axiosInstance from "@/utils/Axios/AxiosInstance";
@@ -43,6 +44,7 @@ export default function HiringManagerPage() {
     loadProfiles,
     handleReview,
     handleCreateOpening,
+    handleDeleteOpening,
     handleClearError,
   } = useHiring();
 
@@ -50,6 +52,7 @@ export default function HiringManagerPage() {
   const [notice, setNotice] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState(initialForm);
+  const [deletingOpening, setDeletingOpening] = useState(false);
 
   useEffect(() => {
     loadManagerOpenings();
@@ -102,6 +105,26 @@ export default function HiringManagerPage() {
     }
   };
 
+  const deleteOpening = async () => {
+    if (!activeOpeningData || deletingOpening) return;
+    const confirmed = window.confirm(
+      `Delete “${activeOpeningData.title}” and all candidate profiles submitted to it? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setNotice("");
+    setDeletingOpening(true);
+    try {
+      await handleDeleteOpening(activeOpeningData.id).unwrap();
+      setActiveOpening("");
+      setNotice("Job posting deleted.");
+    } catch {
+      // The shared alert displays the server message.
+    } finally {
+      setDeletingOpening(false);
+    }
+  };
+
   const previewProfile = async (profileId) => {
     try {
       const response = await axiosInstance.get(
@@ -123,18 +146,6 @@ export default function HiringManagerPage() {
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch {
       setNotice("Could not preview this profile. Refresh your sign-in and try again.");
-    }
-  };
-
-  const handleReanalyze = async (profileId) => {
-    try {
-      await axiosInstance.post(
-        `/hiring-manager/profiles/${profileId}/reanalyze`
-      );
-      setNotice("AI agent re-analysis started in background.");
-      loadProfiles(activeOpening);
-    } catch {
-      setNotice("Could not re-analyze profile. Please try again.");
     }
   };
 
@@ -463,8 +474,19 @@ export default function HiringManagerPage() {
                         </div>
                       </div>
 
-                      <div className="rounded-xl bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">
-                        {activeProfiles.length} candidates
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="rounded-xl bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">
+                          {activeProfiles.length} candidates
+                        </div>
+                        <button
+                          type="button"
+                          onClick={deleteOpening}
+                          disabled={deletingOpening}
+                          className="inline-flex items-center gap-2 rounded-xl bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:text-red-300"
+                        >
+                          {deletingOpening ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                          {deletingOpening ? "Deleting…" : "Delete posting"}
+                        </button>
                       </div>
                     </div>
 
@@ -577,7 +599,7 @@ export default function HiringManagerPage() {
 
                     {/* Score */}
                     <div className="rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 p-5 dark:from-blue-950/50 dark:to-indigo-950/40">
-                      <div className="flex items-center justify-between gap-3">
+                      <div className="flex flex-wrap items-center justify-between gap-4">
                         <div>
                           <p className="text-xs font-semibold text-muted-foreground">
                             Match score
@@ -587,6 +609,26 @@ export default function HiringManagerPage() {
                             {profile.recommendationScore == null
                               ? "—"
                               : `${Math.round(profile.recommendationScore * 100)}%`}
+                          </p>
+                        </div>
+
+                        <div
+                          className="text-center"
+                          title="The model’s confidence in its evaluation explanation; it does not change the deterministic match score."
+                        >
+                          <p className="text-xs font-semibold text-muted-foreground">
+                            AI confidence
+                          </p>
+                          <p className="mt-1 text-lg font-bold text-foreground">
+                            {typeof profile.recommendationConfidence === "number" &&
+                            Number.isFinite(profile.recommendationConfidence)
+                              ? `${Math.round(
+                                  Math.min(
+                                    1,
+                                    Math.max(0, profile.recommendationConfidence)
+                                  ) * 100
+                                )}%`
+                              : "—"}
                           </p>
                         </div>
 
@@ -651,6 +693,42 @@ export default function HiringManagerPage() {
                             "Analysis complete. Candidate scored based on required skills, experience range, and location alignment."}
                         </p>
 
+                        {(() => {
+                          const breakdown = profile.recommendationScoreBreakdown;
+                          const rows = [
+                            { label: "Skills", score: breakdown?.skillMatchScore, weight: 0.5 },
+                            { label: "Experience", score: breakdown?.experienceMatchScore, weight: 0.3 },
+                            { label: "Location", score: breakdown?.locationMatchScore, weight: 0.2 },
+                          ];
+                          if (!rows.every(({ score }) => typeof score === "number")) return null;
+
+                          const total = rows.reduce((sum, row) => sum + row.score * row.weight, 0);
+                          const formatPercent = (value) => `${Math.round(value * 100)}%`;
+                          const formatPoints = (value) => Number((value * 100).toFixed(1));
+
+                          return (
+                            <div className="mt-4 rounded-xl border border-border/60 bg-background/50 p-4">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                Weighted score breakdown
+                              </p>
+                              <div className="mt-3 space-y-2">
+                                {rows.map(({ label, score, weight }) => (
+                                  <div key={label} className="flex flex-wrap justify-between gap-x-4 gap-y-1 text-sm">
+                                    <span className="text-foreground/85">{label}: {formatPercent(score)} × {formatPercent(weight)} weight</span>
+                                    <span className="font-medium text-foreground">{formatPoints(score * weight)} points</span>
+                                  </div>
+                                ))}
+                              </div>
+                              <p className="mt-3 border-t border-border/60 pt-3 text-sm font-semibold text-foreground">
+                                Total: {formatPercent(total)}
+                                {profile.recommendationScore != null && (
+                                  <span className="font-normal text-muted-foreground"> (displayed score: {formatPercent(profile.recommendationScore)})</span>
+                                )}
+                              </p>
+                            </div>
+                          );
+                        })()}
+
                         {profile.recommendationLatencyMs != null && (
                           <p className="mt-3 text-xs text-muted-foreground">
                             Evaluation time:{" "}
@@ -672,21 +750,13 @@ export default function HiringManagerPage() {
                             <p className="mt-1 text-xs leading-6 text-red-700/80 dark:text-red-300/80">
                               {profile.recommendationError ===
                               "AI_PROVIDER_UNAVAILABLE"
-                                ? "The AI service could not be reached. Check the network connection and retry."
+                                ? "The AI service could not complete the analysis after an automatic retry."
                                 : profile.recommendationError ===
                                   "PROVIDER_KEY_MISSING"
                                 ? "The AI service is not configured on the backend."
-                                : "Analysis stopped before it could finish. Retry or check the backend logs."}
+                                : "Analysis stopped before it could finish, including the automatic retry. Contact support if it continues."}
                             </p>
                           </div>
-
-                          <button
-                            type="button"
-                            onClick={() => handleReanalyze(profile.id)}
-                            className="shrink-0 rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-red-700"
-                          >
-                            Retry analysis
-                          </button>
                         </div>
                       </div>
                     )}
