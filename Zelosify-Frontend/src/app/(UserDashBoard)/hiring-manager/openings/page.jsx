@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   BriefcaseBusiness,
+  ArrowLeft,
   Eye,
   Plus,
   RefreshCw,
@@ -17,7 +18,6 @@ import {
   Loader2,
   ChevronRight,
   FileText,
-  Building2,
   Search,
   Trash2,
 } from "lucide-react";
@@ -64,6 +64,7 @@ export default function HiringManagerPage() {
   const lastUrlPage = useRef(requestedPage);
   const [profilesPage, setProfilesPage] = useState(1);
   const [notice, setNotice] = useState("");
+  const [openingSearch, setOpeningSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState(initialForm);
   const [deletingOpening, setDeletingOpening] = useState(false);
@@ -81,20 +82,21 @@ export default function HiringManagerPage() {
   }, [loadManagerOpenings, openingsPage]);
 
   useEffect(() => {
-    if (routeOpeningId) {
-      const routeOpening = managerOpenings.find(
-        (opening) => String(opening.id) === routeOpeningId
-      );
-      if (routeOpening && activeOpening !== routeOpening.id) {
-        setActiveOpening(routeOpening.id);
-      } else if (openingListReady && !routeOpening) {
-        router.replace("/hiring-manager/openings");
-      }
-    } else if (openingListReady && !activeOpening && managerOpenings.length) {
-      const openingId = managerOpenings[0].id;
-      setActiveOpening(openingId);
+    if (!routeOpeningId) {
+      if (activeOpening) setActiveOpening("");
+      return;
     }
-  }, [activeOpening, openingListReady, managerOpenings, routeOpeningId, router]);
+
+    const routeOpening = managerOpenings.find(
+      (opening) => String(opening.id) === routeOpeningId
+    );
+    if (routeOpening && activeOpening !== routeOpening.id) {
+      setActiveOpening(routeOpening.id);
+    } else if (openingListReady && !routeOpening) {
+      setActiveOpening("");
+      router.replace(openingsPage === 1 ? "/hiring-manager/openings" : `/hiring-manager/openings?page=${openingsPage}`);
+    }
+  }, [activeOpening, openingListReady, managerOpenings, routeOpeningId, openingsPage, router]);
 
   useEffect(() => {
     if (activeOpening) loadProfiles(activeOpening, profilesPage, PAGE_SIZE);
@@ -281,6 +283,18 @@ export default function HiringManagerPage() {
   const totalProfilesForOpening = activeProfilesPagination?.total ?? activeProfiles.length;
   const openingsTotal = managerOpeningsPagination?.total ?? managerOpenings.length;
   const openingsTotalPages = managerOpeningsPagination?.totalPages ?? 1;
+  const filteredOpenings = useMemo(() => {
+    const query = openingSearch.trim().toLowerCase();
+    if (!query) return managerOpenings || [];
+
+    return (managerOpenings || []).filter((opening) => [
+      opening.title,
+      opening.location,
+      opening.contractType,
+      opening.description,
+      ...(opening.requiredSkills || []),
+    ].filter(Boolean).join(" ").toLowerCase().includes(query));
+  }, [managerOpenings, openingSearch]);
 
   useEffect(() => {
     if (openingListReady && openingsPage > openingsTotalPages) {
@@ -452,89 +466,19 @@ export default function HiringManagerPage() {
             </div>
           )}
 
-        {/* Main dashboard */}
+        {/* Full-width openings list and separate opening detail route */}
         {!isLoading && managerOpenings?.length > 0 && (
-          <div className="grid items-start gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
-
-            {/* Opening list */}
-            <aside className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base font-bold text-foreground">
-                  Your openings
-                </h2>
-                <span className="rounded-lg bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
-                  {openingsTotal}
-                </span>
-              </div>
-
-              <nav aria-label="Your openings" className="space-y-2">
-                {managerOpenings.map((opening) => {
-                  const selected = activeOpening === opening.id;
-
-                  return (
-                    <button
-                      key={opening.id}
-                      type="button"
-                      onClick={() => selectOpening(opening.id)}
-                      className={`w-full rounded-2xl p-4 text-left transition-all ${
-                        selected
-                          ? "bg-gradient-to-br from-blue-100 to-indigo-100 shadow-md shadow-blue-950/5 ring-1 ring-blue-300 dark:from-blue-950/70 dark:to-indigo-950/50 dark:ring-blue-800"
-                          : "bg-[color:var(--tertiary)] hover:-translate-y-0.5 hover:shadow-md"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-semibold leading-6 text-foreground">
-                            {opening.title}
-                          </p>
-
-                          <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <MapPin size={13} />
-                            <span className="truncate">
-                              {opening.location || "Location flexible"}
-                            </span>
-                          </p>
-                        </div>
-
-                        <ChevronRight
-                          size={17}
-                          className={`mt-1 shrink-0 ${
-                            selected ? "text-primary" : "text-muted-foreground"
-                          }`}
-                        />
-                      </div>
-
-                      <div className="mt-4 flex items-center justify-between gap-2">
-                        <span className="text-xs text-muted-foreground">
-                          {opening.profilesCount || 0} profiles
-                        </span>
-
-                        <span className="rounded-md bg-background/70 px-2 py-1 text-[11px] font-semibold text-muted-foreground">
-                          {opening.status?.replaceAll("_", " ") || "OPEN"}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </nav>
-              <PaginationControls
-                page={openingsPage}
-                totalPages={openingsTotalPages}
-                total={openingsTotal}
-                pageSize={PAGE_SIZE}
-                onPageChange={(nextPage) => {
-                  setActiveOpening("");
-                  setOpeningListReady(false);
-                  setOpeningsPage(nextPage);
-                  router.push(nextPage === 1 ? "/hiring-manager/openings" : `/hiring-manager/openings?page=${nextPage}`);
-                }}
-                disabled={isLoading}
-                label="openings"
-              />
-            </aside>
-
-            {/* Selected opening and candidates */}
-            {activeOpening && (
+          routeOpeningId ? (
+            <section className="space-y-5">
+              <button
+                type="button"
+                onClick={() => router.push(openingsPage === 1 ? "/hiring-manager/openings" : `/hiring-manager/openings?page=${openingsPage}`)}
+                className="inline-flex items-center gap-2 rounded-xl bg-[color:var(--tertiary)] px-4 py-2.5 text-sm font-semibold text-foreground transition hover:bg-accent"
+              >
+                <ArrowLeft size={16} />
+                Back to openings
+              </button>
+              {activeOpening && routeOpeningId && (
               <div className="min-w-0 space-y-5">
 
                 {/* Opening details */}
@@ -900,7 +844,92 @@ export default function HiringManagerPage() {
                 />
               </div>
             )}
-          </div>
+
+            </section>
+          ) : (
+            <section className="space-y-5">
+              <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+                <div>
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-xl font-bold text-foreground">Your openings</h2>
+                    <span className="rounded-lg bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">{openingsTotal}</span>
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">Select a posting to review its candidates and AI evaluations.</p>
+                </div>
+                <div className="relative w-full sm:max-w-md">
+                  <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="search"
+                    value={openingSearch}
+                    onChange={(event) => setOpeningSearch(event.target.value)}
+                    placeholder="Search by role, skill or location..."
+                    aria-label="Search your openings"
+                    className="w-full rounded-xl bg-[color:var(--tertiary)] py-3 pl-11 pr-4 text-sm text-foreground outline-none ring-1 ring-border transition placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+              </div>
+
+              {filteredOpenings.length ? (
+                  <div className="overflow-hidden rounded-2xl bg-[color:var(--tertiary)]">
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[850px] text-left">
+                        <thead className="border-b border-border/60 bg-background/70">
+                          <tr className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            <th scope="col" className="px-5 py-4">Title</th>
+                            <th scope="col" className="px-5 py-4">Location</th>
+                            <th scope="col" className="px-5 py-4">Contract type</th>
+                            <th scope="col" className="px-5 py-4">Experience</th>
+                            <th scope="col" className="px-5 py-4">Candidates</th>
+                            <th scope="col" className="px-5 py-4"><span className="sr-only">Action</span></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/50">
+                          {filteredOpenings.map((opening) => (
+                            <tr key={opening.id} className="transition hover:bg-background/30">
+                              <th scope="row" className="max-w-sm px-5 py-5 font-semibold text-foreground">
+                                <button type="button" onClick={() => selectOpening(opening.id)} className="text-left transition hover:text-primary hover:underline">
+                                  {opening.title}
+                                </button>
+                                {opening.description && <p className="mt-1 line-clamp-2 text-xs font-normal leading-5 text-muted-foreground">{opening.description}</p>}
+                              </th>
+                              <td className="whitespace-nowrap px-5 py-5 text-sm text-foreground/85"><span className="inline-flex items-center gap-2"><MapPin size={15} className="shrink-0 text-primary" />{opening.location || "Location flexible"}</span></td>
+                              <td className="whitespace-nowrap px-5 py-5 text-sm text-foreground/85">{opening.contractType || "Not specified"}</td>
+                              <td className="whitespace-nowrap px-5 py-5 text-sm text-foreground/85">{opening.experienceMin ?? 0}–{opening.experienceMax == null ? "Any" : opening.experienceMax} years</td>
+                              <td className="whitespace-nowrap px-5 py-5 text-sm text-foreground/85">{opening.profilesCount || 0}</td>
+                              <td className="whitespace-nowrap px-5 py-5 text-right">
+                                <button type="button" onClick={() => selectOpening(opening.id)} className="inline-flex items-center gap-2 rounded-lg bg-[#24476b] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#1b3855] dark:bg-[#294766] dark:hover:bg-[#355a7d]">
+                                  View candidates
+                                  <ChevronRight size={16} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <PaginationControls
+                      page={openingsPage}
+                      totalPages={openingsTotalPages}
+                      total={openingsTotal}
+                      pageSize={PAGE_SIZE}
+                      onPageChange={(nextPage) => {
+                        setOpeningListReady(false);
+                        setOpeningsPage(nextPage);
+                        router.push(nextPage === 1 ? "/hiring-manager/openings" : `/hiring-manager/openings?page=${nextPage}`);
+                      }}
+                      disabled={isLoading}
+                      label="openings"
+                    />
+                  </div>
+                ) : (
+                  <div className="rounded-2xl bg-[color:var(--tertiary)] px-6 py-12 text-center">
+                    <Search size={28} className="mx-auto text-muted-foreground" />
+                    <h3 className="mt-4 font-bold text-foreground">No matching openings</h3>
+                    <p className="mt-2 text-sm text-muted-foreground">Try another title, skill or location.</p>
+                  </div>
+                )}
+            </section>
+          )
         )}
 
         {/* Create opening modal */}
