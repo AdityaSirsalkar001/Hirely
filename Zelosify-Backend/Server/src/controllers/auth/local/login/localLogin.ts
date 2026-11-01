@@ -59,8 +59,6 @@ export const verifyLogin = async (
 
     const clientSecret = await getKeycloakClientSecret();
 
-    console.log("🔹 Attempting Keycloak login with:", user.email);
-
     try {
       const tokenResponse = await axios.post(
         `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/token`,
@@ -134,24 +132,31 @@ export const verifyLogin = async (
         return; // Just return without value to satisfy Promise<void>
       }
 
-      // Normal flow for non-seeded users (existing code)
-      // Store the refresh token securely
+      // Keep the Keycloak refresh token on the user row. Embedding it in the
+      // temp cookie exceeds typical browser cookie limits and the browser then
+      // drops temp_token, which surfaces as "Temp token and TOTP are required".
       const refreshToken = tokenResponse.data.refresh_token;
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          accessToken: tokenResponse.data.access_token,
+          refreshToken,
+        },
+      });
 
-      // Generate a temporary token that includes the refresh token
-      const tempToken = generateTempToken(user.id, refreshToken);
+      const tempToken = generateTempToken(user.id);
 
-      // Store tempToken in cookies
       res.cookie("temp_token", tempToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        sameSite: "lax",
         maxAge: 5 * 60 * 1000, // 5 minutes
         path: "/",
       });
 
       const totpResponse: LoginTOTPRequiredResponse = {
         message: "Login verified. Please enter your TOTP code.",
+        tempToken,
       };
 
       res.json(totpResponse);

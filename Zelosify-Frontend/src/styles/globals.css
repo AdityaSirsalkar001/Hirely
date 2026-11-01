@@ -2,122 +2,239 @@
 @tailwind components;
 @tailwind utilities;
 
-/* light theme */
+/* =========================================================
+   HIRELY DESIGN SYSTEM
+   ========================================================= */
+
 :root {
-  --background: #ffffff; /* plain-white */
-  --foreground: #000000; /* plain-black */
-  --primary: #1f2937; /* slate-800 */
-  --secondary: #4b5563; /* gray-600 */
-  --tertiary: #ffffff; /* plain-white */
-  --border: #e2e8f0; /* gray-200 */
-  --ring: #2563eb; /* blue-600 */
-  --focus: #2563eb; /* blue-600 */
-  --chart-line: #000; /* plain-black */
-  --table-header: #f9fafb; /* gray-50 */
-  --scroll-bar: #d1d5db; /* gray-300 */
+  color-scheme: light;
+
+  --background: #f8fafc;
+  --foreground: #0f172a;
+
+  --primary: #2563eb;
+  --secondary: #64748b;
+  --tertiary: #ffffff;
+
+  --border: #e2e8f0;
+  --ring: #3b82f6;
+  --focus: #2563eb;
+
+  --chart-line: #0f172a;
+  --table-header: #f8fafc;
+  --scroll-bar: #cbd5e1;
+
   --card: 0 0% 100%;
   --card-foreground: 222.2 84% 4.9%;
   --popover: 0 0% 100%;
   --popover-foreground: 222.2 84% 4.9%;
+
   --primary-foreground: 210 40% 98%;
   --secondary-foreground: 222.2 47.4% 11.2%;
+
   --muted: 210 40% 96.1%;
-  --muted-foreground: #1f2937; /* slate-800 */
-  --accent: #f3f4f6; /* gray-100 */
+  --muted-foreground: 215 16% 47%;
+
+  --accent: #eff6ff;
   --accent-foreground: 222.2 47.4% 11.2%;
+
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: #dc2626;
-  --chart-1: 220 70% 50%; /* Light Blue */
-  --chart-2: 160 60% 45%; /* Light Green */
-  --chart-3: 30 80% 55%; /* Light Coral */
-  --chart-4: 280 65% 60%; /* Lavender */
-  --chart-5: 340 75% 55%; /* Salmon */
-  --chart-6: 0 100% 50%; /* Red */
-  --chart-7: 120 100% 50%; /* Green */
-  --chart-8: 240 100% 50%; /* Blue */
-  --chart-9: 60 100% 50%; /* Yellow */
-  --chart-10: 300 100% 50%; /* Magenta */
-  --chart-11: 180 100% 50%; /* Cyan */
-  --chart-12: 0 0% 50%; /* Gray */
-  --radius: 0.5rem;
-  --sidebar-background: 0 0% 98%;
-  --sidebar-foreground: 240 5.3% 26.1%;
-  --sidebar-primary: 240 5.9% 10%;
-  --sidebar-primary-foreground: 0 0% 98%;
-  --sidebar-accent: 240 4.8% 95.9%;
-  --sidebar-accent-foreground: 240 5.9% 10%;
+
+  --input: 214.3 31.8% 91.4%;
+
+  --chart-1: 221 83% 53%;
+  --chart-2: 160 60% 45%;
+  --chart-3: 30 80% 55%;
+  --chart-4: 280 65% 60%;
+  --chart-5: 340 75% 55%;
+  --chart-6: 0 84% 60%;
+  --chart-7: 142 71% 45%;
+  --chart-8: 240 80% 60%;
+  --chart-9: 45 93% 47%;
+  --chart-10: 300 65% 55%;
+  --chart-11: 180 65% 45%;
+  --chart-12: 215 16% 47%;
+
+  --radius: 0.75rem;
+
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 222.2 47.4% 11.2%;
+  --sidebar-primary: 221 83% 53%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 214 100% 97%;
+  --sidebar-accent-foreground: 221 83% 40%;
   --sidebar-border: 220 13% 91%;
   --sidebar-ring: 217.2 91.2% 59.8%;
 }
 
-/* dark theme */
+/* =========================================================
+   DARK THEME
+   ========================================================= */
+
 .dark {
-  --background: #111827; /* slate-900 */
-  --foreground: #f8fafc; /* slate-100 */
-  --primary: #cbd5e1; /* slate-300 */
-  --secondary: #9ca3af; /* gray-400 */
-  --tertiary: #000000; /* plain-black */
-  --border: #374151; /* gray-700 */
-  --ring: #2563eb; /* blue-600 */
-  --focus: #2563eb; /* blue-600 */
-  --chart-line: #fff; /* plain-white */
-  --table-header: #171f2b; /* gray-850 */
-  --scroll-bar: #4b5563; /* gray-600 */
-  --card: 222.2 84% 4.9%;
+  color-scheme: dark;
+
+  --background: #0b1120;
+  --foreground: #f1f5f9;
+
+  --primary: #60a5fa;
+  --secondary: #94a3b8;
+  --tertiary: #111827;
+
+  --border: #263449;
+  --ring: #3b82f6;
+  --focus: #60a5fa;
+
+  --chart-line: #f8fafc;
+  --table-header: #111827;
+  --scroll-bar: #475569;
+
+  --card: 222.2 47% 10%;
   --card-foreground: 210 40% 98%;
-  --popover: 222.2 84% 4.9%;
+  --popover: 222.2 47% 10%;
   --popover-foreground: 210 40% 98%;
+
   --primary-foreground: 222.2 47.4% 11.2%;
   --secondary-foreground: 210 40% 98%;
+
   --muted: 217.2 32.6% 17.5%;
-  --muted-foreground: #cbd5e1; /* slate-300 */
-  --accent: #1f2937; /* gray-800 */
+  --muted-foreground: 215 20% 65%;
+
+  --accent: #172554;
   --accent-foreground: 210 40% 98%;
+
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: #f87171;
-  --input: 217.2 32.6% 17.5%;
-  --chart-1: 220 70% 50%; /* Light Blue */
-  --chart-2: 160 60% 45%; /* Light Green */
-  --chart-3: 30 80% 55%; /* Light Coral */
-  --chart-4: 280 65% 60%; /* Lavender */
-  --chart-5: 340 75% 55%; /* Salmon */
-  --chart-6: 0 100% 50%; /* Red */
-  --chart-7: 120 100% 50%; /* Green */
-  --chart-8: 240 100% 50%; /* Blue */
-  --chart-9: 60 100% 50%; /* Yellow */
-  --chart-10: 300 100% 50%; /* Magenta */
-  --chart-11: 180 100% 50%; /* Cyan */
-  --chart-12: 0 0% 50%; /* Gray */
-  --radius: 0.5rem;
-  --sidebar-background: 240 5.9% 10%;
-  --sidebar-foreground: 240 4.8% 95.9%;
-  --sidebar-primary: 224.3 76.3% 48%;
+
+  --input: 217.2 32.6% 25%;
+
+  --chart-1: 217 91% 60%;
+  --chart-2: 160 60% 45%;
+  --chart-3: 30 80% 55%;
+  --chart-4: 280 65% 65%;
+  --chart-5: 340 75% 60%;
+  --chart-6: 0 84% 65%;
+  --chart-7: 142 71% 50%;
+  --chart-8: 240 80% 65%;
+  --chart-9: 45 93% 55%;
+  --chart-10: 300 65% 60%;
+  --chart-11: 180 65% 50%;
+  --chart-12: 215 16% 60%;
+
+  --sidebar-background: 222 47% 8%;
+  --sidebar-foreground: 210 40% 96%;
+  --sidebar-primary: 217 91% 60%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 240 3.7% 15.9%;
-  --sidebar-accent-foreground: 240 4.8% 95.9%;
-  --sidebar-border: 240 3.7% 15.9%;
+  --sidebar-accent: 222 35% 15%;
+  --sidebar-accent-foreground: 210 40% 96%;
+  --sidebar-border: 217 25% 18%;
   --sidebar-ring: 217.2 91.2% 59.8%;
 }
 
-.recharts-bar-rectangle:hover {
-  fill: none; /* Remove the fill color */
-}
+/* =========================================================
+   BASE ELEMENTS
+   ========================================================= */
 
 html {
-  background-color: var(--background);
+  min-height: 100%;
+  scroll-behavior: smooth;
+  background: var(--background);
   color: var(--foreground);
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-weight: 500; /* Optional default weight */
-  font-size: medium;
-  font-style: normal; /* Optional default style */
+body {
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 400;
+  font-style: normal;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* this is for testimonial section  */
+* {
+  box-sizing: border-box;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+
+.dark ::selection {
+  background: #1e40af;
+  color: #eff6ff;
+}
+
+/* =========================================================
+   SCROLLBARS
+   ========================================================= */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--scroll-bar);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* =========================================================
+   CHARTS
+   ========================================================= */
+
+.recharts-bar-rectangle:hover {
+  fill: none;
+}
+
+/* =========================================================
+   REUSABLE COMPONENT CLASSES
+   ========================================================= */
+
+@layer components {
+  .flex-center {
+    @apply flex items-center justify-center;
+  }
+
+  .cancel-red {
+    @apply text-red-600 dark:text-red-400;
+  }
+}
+
+/* =========================================================
+   ANIMATIONS
+   ========================================================= */
+
 @keyframes marquee {
   0% {
     transform: translateX(0);
@@ -132,7 +249,6 @@ html {
   animation: marquee 60s linear infinite;
 }
 
-/* this is for contact section  */
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -149,50 +265,6 @@ html {
   animation: fade-in 0.3s ease-out forwards;
 }
 
-/* for background banner  */
-
-/* In your Tailwind CSS configuration (e.g., styles.css) */
-.scroll-mt-40 {
-  scroll-margin-top: 40px;
-}
-
-.whitespace-nowrap {
-  white-space: nowrap;
-}
-.overflow-hidden {
-  overflow: hidden;
-}
-
-/* this is for scroll bar  */
-html {
-  scroll-behavior: smooth;
-}
-
-::-webkit-scrollbar {
-  width: 0.3rem;
-}
-
-::-webkit-scrollbar-thumb {
-  border-radius: 5px;
-  background: var(--scroll-bar);
-  transition: all 0.5s ease-in-out;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--background);
-}
-
-/* Resusable classes */
-@layer components {
-  .flex-center {
-    @apply flex justify-center items-center;
-  }
-  .cancel-red {
-    @apply text-red-600 dark:text-red-400;
-  }
-}
-
-/* Animation delays for typing indicator */
 @layer utilities {
   .animation-delay-200 {
     animation-delay: 0.2s;
@@ -200,5 +272,24 @@ html {
 
   .animation-delay-400 {
     animation-delay: 0.4s;
+  }
+
+  .scrollbar-hidden {
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

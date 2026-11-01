@@ -1,33 +1,36 @@
 import { useRouter } from "next/navigation";
 import { memo, useCallback } from "react";
 
-// SidebarMenuSub component - memoized
 export const SidebarMenuSub = memo(
   ({ children, isOpen, isExpanded, className, ...props }) => {
     const isVisible = isOpen && isExpanded;
 
     return (
       <div
-        className={`overflow-hidden transition-all duration-300 ease-in-out ${
-          isVisible ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+        className={`grid transition-all duration-200 ease-in-out ${
+          isVisible
+            ? "grid-rows-[1fr] opacity-100"
+            : "grid-rows-[0fr] opacity-0"
         }`}
       >
-        <ul
-          data-sidebar="menu-sub"
-          className={`ml-3 pl-1 border-l border-border mt-1 space-y-1 ${
-            isVisible ? "pointer-events-auto" : "pointer-events-none"
-          } ${className || ""}`}
-          {...props}
-        >
-          {children}
-        </ul>
+        <div className="overflow-hidden">
+          <ul
+            data-sidebar="menu-sub"
+            className={`ml-5 mt-1 space-y-1 border-l border-border pl-3 ${
+              isVisible ? "pointer-events-auto" : "pointer-events-none"
+            } ${className || ""}`}
+            {...props}
+          >
+            {children}
+          </ul>
+        </div>
       </div>
     );
   }
 );
+
 SidebarMenuSub.displayName = "SidebarMenuSub";
 
-// SidebarMenuSubItem component - memoized
 export const SidebarMenuSubItem = memo(
   ({ item, isActive, isOpen, ...props }) => {
     const router = useRouter();
@@ -39,29 +42,33 @@ export const SidebarMenuSubItem = memo(
     return (
       <li {...props}>
         <button
+          type="button"
           onClick={handleClick}
+          aria-current={isActive ? "page" : undefined}
           className={`
-          w-full rounded-md flex items-center gap-2 px-3 py-2 text-sm
-          ${
-            isActive
-              ? "bg-blue-50 text-blue-600 font-medium dark:bg-blue-900/20 dark:text-blue-400"
-              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100"
-          }
-        `}
+            flex min-h-10 w-full items-center gap-2 rounded-lg
+            px-3 py-2 text-sm transition-colors duration-200
+            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+            ${
+              isActive
+                ? "bg-primary/10 font-semibold text-primary"
+                : "font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+            }
+          `}
         >
           {item.icon && (
             <item.icon
-              className={`h-5 w-5 ${
-                isActive
-                  ? "text-blue-600 dark:text-blue-400"
-                  : "text-gray-500 dark:text-gray-400"
+              className={`h-4 w-4 shrink-0 ${
+                isActive ? "text-primary" : "text-muted-foreground"
               }`}
             />
           )}
-          {isOpen && <span>{item.title}</span>}
+
+          {isOpen && <span className="truncate">{item.title}</span>}
         </button>
       </li>
     );
   }
 );
+
 SidebarMenuSubItem.displayName = "SidebarMenuSubItem";

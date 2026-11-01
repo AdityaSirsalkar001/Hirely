@@ -1,4 +1,5 @@
 "use client";
+
 import SignOutConfirmation from "@/components/UI/SignOutConfirmation";
 import Header from "@/components/UserDashboardPage/Header/Header";
 import SideBarLayout from "@/components/UserDashboardPage/SideBar/SideBarLayout";
@@ -8,20 +9,29 @@ import useAuth from "@/hooks/Auth/useAuth";
 export default function UserDashboardlayout({ children }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const { showSignoutConfirmation, handleCloseSignoutConfirmation } = useAuth();
+
+  const { showSignoutConfirmation, handleCloseSignoutConfirmation } =
+    useAuth();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // Automatically configure sidebar based on screen size.
   useEffect(() => {
-    const handleResize = () => {
-      setIsSidebarOpen(window.innerWidth >= 1024);
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+
+    const handleScreenChange = (event) => {
+      setIsSidebarOpen(event.matches);
     };
 
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    setIsSidebarOpen(mediaQuery.matches);
+
+    mediaQuery.addEventListener("change", handleScreenChange);
+
+    return () => {
+      mediaQuery.removeEventListener("change", handleScreenChange);
+    };
   }, []);
 
   const toggleSidebar = useCallback(() => {
@@ -31,46 +41,31 @@ export default function UserDashboardlayout({ children }) {
   if (!mounted) return null;
 
   return (
-    <>
-      {/* Overlay blurred warning */}
-      <div className="fixed h-screen w-full inset-0 lg:hidden flex items-center justify-center bg-black/70 backdrop-blur-md z-50">
-        <div className="bg-white p-8 rounded-lg shadow-2xl text-center max-w-md relative overflow-hidden mx-4">
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-white opacity-90" />
-          <div className="relative z-10">
-            <h2 className="text-2xl font-bold mb-4 text-gray-900">
-              Optimized for Larger Screens
-            </h2>
-            <p className="text-base text-gray-600">
-              This site is designed for laptops and desktops to ensure the best
-              experience. Please visit on a larger screen for full
-              functionality.
-            </p>
-          </div>
-        </div>
-      </div>
+    <div className="flex flex-col min-h-screen min-w-0 bg-background overflow-x-clip">
+      <SignOutConfirmation
+        isOpen={showSignoutConfirmation}
+        onCancel={handleCloseSignoutConfirmation}
+      />
 
-      {/* main content */}
-      <div className="flex flex-col min-h-screen bg-background">
-        <SignOutConfirmation
-          isOpen={showSignoutConfirmation}
-          onCancel={handleCloseSignoutConfirmation}
+      <Header
+        toggleSidebar={toggleSidebar}
+        isSidebarOpen={isSidebarOpen}
+      />
+
+      <div className="flex flex-1 min-w-0">
+        <SideBarLayout
+          isSidebarOpen={isSidebarOpen}
+          toggleSidebar={toggleSidebar}
         />
-        <Header toggleSidebar={toggleSidebar} isSidebarOpen={isSidebarOpen} />
-        <div className="flex flex-1 overflow-hidden">
-          <SideBarLayout
-            isSidebarOpen={isSidebarOpen}
-            toggleSidebar={toggleSidebar}
-            className="transition-all duration-300"
-          />
-          <main
-            className={`relative flex-1 justify-between items-center w-full transition-all duration-300 ${
-              isSidebarOpen ? "ml-48" : "ml-20"
-            }`}
-          >
-            {children}
-          </main>
-        </div>
+
+        <main
+          className={`relative flex-1 min-w-0 w-full min-h-[calc(100vh-4rem)] transition-all duration-300 ${
+            isSidebarOpen ? "lg:ml-48" : "lg:ml-20"
+          }`}
+        >
+          {children}
+        </main>
       </div>
-    </>
+    </div>
   );
 }

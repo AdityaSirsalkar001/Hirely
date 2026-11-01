@@ -20,8 +20,10 @@ export interface RegisterRequest {
   lastName: string;
   /** User's phone number */
   phoneNumber: string;
-  /** Tenant ID for multi-tenant setup */
-  tenantId: string;
+  /** Existing tenant ID for multi-tenant setup, when supplied */
+  tenantId?: string;
+  /** Company name used to find or create a tenant during self-service signup */
+  companyName?: string;
   /** User's department */
   department: string;
   /** User's role in the system */
@@ -81,6 +83,8 @@ export interface RegisterResponse {
 export interface LoginTOTPRequiredResponse {
   /** Message indicating TOTP is required */
   message: string;
+  /** Short-lived login token used if the httpOnly cookie is not sent */
+  tempToken: string;
 }
 
 /**

@@ -97,6 +97,9 @@ export const loginWithCredentials = createAsyncThunk(
         usernameOrEmail,
         password,
       });
+      if (typeof window !== "undefined" && response.data?.tempToken) {
+        sessionStorage.setItem("zelosify_temp_token", response.data.tempToken);
+      }
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -111,9 +114,17 @@ export const verifyTOTP = createAsyncThunk(
   "auth/verifyTOTP",
   async ({ totp }, { rejectWithValue }) => {
     try {
+      const tempToken =
+        typeof window !== "undefined"
+          ? sessionStorage.getItem("zelosify_temp_token")
+          : null;
       const response = await axiosInstance.post("/auth/verify-totp", {
-        totp,
+        totp: typeof totp === "string" ? totp.trim() : totp,
+        tempToken,
       });
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("zelosify_temp_token");
+      }
       // Save the user data to localStorage after successful TOTP verification
       if (response.data && response.data.user) {
         saveUserToStorage(response.data.user);
@@ -129,14 +140,18 @@ export const verifyTOTP = createAsyncThunk(
 
 export const signOut = createAsyncThunk(
   "auth/signOut",
-  async (_, { dispatch, rejectWithValue }) => {
+  async () => {
     try {
       await axiosInstance.post("/auth/logout");
-      dispatch(logout());
-      return "/user"; // Return the navigation path
     } catch (error) {
-      return rejectWithValue(error.message);
+      // An expired access token can make the server reject logout. Always clear
+      // this browser's local session so the user can sign in again.
+      console.warn("Server logout could not be completed; clearing local session.");
     }
+    if (typeof window !== "undefined") {
+        sessionStorage.removeItem("zelosify_temp_token");
+      }
+      return "/login"; // Return the navigation path
   }
 );
 
@@ -163,6 +178,14 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      .addCase(signOut.fulfilled, (state) => {
+        state.user = null;
+        state.loading = false;
+        state.error = null;
+        state.showSignoutConfirmation = false;
+        clearAuthData();
+        saveUserToStorage(null);
+      })
       // Handle checkAuthStatus
       .addCase(checkAuthStatus.pending, (state) => {
         state.loading = true;

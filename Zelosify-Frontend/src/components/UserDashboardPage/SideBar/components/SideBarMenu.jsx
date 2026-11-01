@@ -1,35 +1,30 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { memo } from "react";
 
-// SidebarMenu component - memoized
-export const SidebarMenu = memo(({ children, className, ...props }) => {
-  return (
-    <ul
-      data-sidebar="menu"
-      className={`flex w-full min-w-0 flex-col gap-2 ${className || ""}`}
-      {...props}
-    >
-      {children}
-    </ul>
-  );
-});
+export const SidebarMenu = memo(({ children, className, ...props }) => (
+  <ul
+    data-sidebar="menu"
+    className={`flex w-full min-w-0 flex-col gap-1 ${className || ""}`}
+    {...props}
+  >
+    {children}
+  </ul>
+));
+
 SidebarMenu.displayName = "SidebarMenu";
 
-// SidebarMenuItem component - memoized
-export const SidebarMenuItem = memo(({ children, className, ...props }) => {
-  return (
-    <li
-      data-sidebar="menu-item"
-      className={`group/menu-item relative ${className || ""}`}
-      {...props}
-    >
-      {children}
-    </li>
-  );
-});
+export const SidebarMenuItem = memo(({ children, className, ...props }) => (
+  <li
+    data-sidebar="menu-item"
+    className={`group/menu-item relative ${className || ""}`}
+    {...props}
+  >
+    {children}
+  </li>
+));
+
 SidebarMenuItem.displayName = "SidebarMenuItem";
 
-// SidebarMenuButton component - memoized
 export const SidebarMenuButton = memo(
   ({
     icon: Icon,
@@ -41,46 +36,52 @@ export const SidebarMenuButton = memo(
     isExpanded,
     className,
     ...props
-  }) => {
-    return (
-      <button
-        data-sidebar="menu-button"
-        data-active={isActive}
-        onClick={onClick}
-        className={`
-        flex w-full items-center ${
-          isOpen ? "justify-between" : "justify-center"
-        } px-3 py-2 text-sm rounded-md
+  }) => (
+    <button
+      type="button"
+      data-sidebar="menu-button"
+      data-active={isActive}
+      aria-current={isActive ? "page" : undefined}
+      aria-expanded={hasSubmenu ? isExpanded : undefined}
+      title={!isOpen ? title : undefined}
+      onClick={onClick}
+      className={`
+        relative flex min-h-11 w-full items-center rounded-xl
+        px-3 py-2.5 text-sm transition-all duration-200
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+        ${isOpen ? "justify-between" : "justify-center"}
         ${
           isActive
-            ? "bg-blue-50 text-blue-600 font-medium dark:bg-blue-900/20 dark:text-blue-400"
-            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100"
+            ? "bg-primary/10 font-semibold text-primary"
+            : "font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
         }
         ${className || ""}
       `}
-        {...props}
-      >
-        <div className="flex items-center gap-2">
-          {Icon && (
-            <Icon
-              className={`h-5 w-5 ${
-                isActive
-                  ? "text-blue-600 dark:text-blue-400"
-                  : "text-gray-500 dark:text-gray-400"
-              }`}
-            />
-          )}
-          {isOpen && <span>{title}</span>}
-        </div>
-        {isOpen &&
-          hasSubmenu &&
-          (isExpanded ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronRight className="h-4 w-4" />
-          ))}
-      </button>
-    );
-  }
+      {...props}
+    >
+      <span className={`flex min-w-0 items-center ${isOpen ? "gap-3" : "justify-center"}`}>
+        {Icon && (
+          <Icon
+            className={`h-[19px] w-[19px] shrink-0 transition-colors ${
+              isActive ? "text-primary" : "text-muted-foreground"
+            }`}
+          />
+        )}
+
+        {isOpen && (
+          <span className="truncate text-left">{title}</span>
+        )}
+      </span>
+
+      {isOpen && hasSubmenu && (
+        isExpanded ? (
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+        )
+      )}
+    </button>
+  )
 );
+
 SidebarMenuButton.displayName = "SidebarMenuButton";

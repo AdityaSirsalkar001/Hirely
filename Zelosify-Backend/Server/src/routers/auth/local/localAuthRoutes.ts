@@ -12,6 +12,7 @@ import {
   logout,
   register,
   verifyLogin,
+  verifyInitialTOTP,
   verifyTOTP,
 } from "../../../controllers/controllers.js";
 import { AuthenticatedRequest } from "../../../types/common.js";
@@ -52,6 +53,21 @@ const router = Router();
  */
 router.post("/register", wrapHandler(register));
 
+const authenticateInitialTOTP: RequestHandler = (req, res, next) => {
+  if (req.cookies?.registration_token) {
+    next();
+    return;
+  }
+  authenticateUser(req, res, next);
+};
+
+/** Completes QR-based TOTP setup for a new or legacy local account. */
+router.post(
+  "/verify-initial-totp",
+  authenticateInitialTOTP,
+  wrapHandler(verifyInitialTOTP)
+);
+
 /**
  * POST /verify-login - Verify user login credentials
  * Validates user credentials and initiates login process
@@ -68,6 +84,8 @@ router.post("/verify-totp", wrapHandler(verifyTOTP));
  * POST /logout - Logout authenticated user
  * Requires authentication middleware to access user session
  */
-router.post("/logout", authenticateUser, wrapProtectedHandler(logout));
+// Logout must remain available when the access token has expired; otherwise
+// the stale httpOnly cookies cannot be cleared and the user gets stuck.
+router.post("/logout", wrapHandler(logout));
 
 export default router;
