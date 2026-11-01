@@ -6,6 +6,7 @@ import {
   listHiringManagerOpenings,
   listHiringManagerProfiles,
   createHiringManagerOpening,
+  deleteHiringManagerOpening,
   reanalyzeProfile,
   rejectProfile,
   shortlistProfile,
@@ -17,6 +18,7 @@ const auth = [authenticateUser as RequestHandler, authorizeRole("HIRING_MANAGER"
 
 router.get("/openings", ...auth, asyncHandler(async (req: Request, res: Response) => { await listHiringManagerOpenings(req, res); }));
 router.post("/openings", ...auth, asyncHandler(async (req: Request, res: Response) => { await createHiringManagerOpening(req, res); }));
+router.delete("/openings/:id", ...auth, asyncHandler(async (req: Request, res: Response) => { await deleteHiringManagerOpening(req, res); }));
 router.get("/openings/:id/profiles", ...auth, asyncHandler(async (req: Request, res: Response) => { await listHiringManagerProfiles(req, res); }));
 router.get("/profiles/:id/preview", ...auth, asyncHandler(async (req: Request, res: Response) => { await previewManagerProfile(req, res); }));
 router.post("/profiles/:id/reanalyze", ...auth, asyncHandler(async (req: Request, res: Response) => { await reanalyzeProfile(req, res); }));

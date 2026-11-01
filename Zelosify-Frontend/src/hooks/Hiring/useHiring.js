@@ -3,7 +3,7 @@ import { useCallback, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   clearHiringError, fetchManagerOpenings, fetchOpeningProfiles, fetchVendorOpenings,
-  createManagerOpening, resetHiring, reviewProfile, selectHiringError, selectHiringLoading,
+  createManagerOpening, deleteManagerOpening, resetHiring, reviewProfile, selectHiringError, selectHiringLoading,
 } from "@/redux/features/Hiring/hiringSlice";
 
 export default function useHiring() {
@@ -27,9 +27,10 @@ export default function useHiring() {
   const loadProfiles = useCallback((openingId) => dispatch(fetchOpeningProfiles(openingId)), [dispatch]);
   const handleReview = useCallback((profileId, decision) => dispatch(reviewProfile({ profileId, decision })), [dispatch]);
   const handleCreateOpening = useCallback((opening) => dispatch(createManagerOpening(opening)), [dispatch]);
+  const handleDeleteOpening = useCallback((openingId) => dispatch(deleteManagerOpening(openingId)), [dispatch]);
   const handleClearError = useCallback(() => dispatch(clearHiringError()), [dispatch]);
   const handleResetHiring = useCallback(() => { fetched.current = { vendor: false, manager: false }; dispatch(resetHiring()); }, [dispatch]);
 
   return { vendorOpenings, managerOpenings, profilesByOpening, isLoading, isSubmitting, error,
-    loadVendorOpenings, loadManagerOpenings, loadProfiles, handleReview, handleCreateOpening, handleClearError, handleResetHiring };
+    loadVendorOpenings, loadManagerOpenings, loadProfiles, handleReview, handleCreateOpening, handleDeleteOpening, handleClearError, handleResetHiring };
 }

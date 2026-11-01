@@ -63,8 +63,8 @@ function normalizeFile(file: RequestedProfileFile) {
   const ext = path.extname(file.fileName).toLowerCase();
   const contentType = MIME_BY_EXTENSION[ext];
   if (!contentType) throw new HiringProfileServiceError("Only PDF and PPTX profiles are supported", 400);
-  const safeFileName = sanitizeFilename(path.basename(file.fileName)).slice(0, 180);
-  if (!safeFileName || safeFileName === ext) throw new HiringProfileServiceError("A valid filename is required", 400);
+  const sanitizedName = sanitizeFilename(path.basename(file.fileName)).slice(0, 180);
+  const safeFileName = !sanitizedName || sanitizedName === ext ? `candidate${ext}` : sanitizedName;
   return { fileName: safeFileName, size: file.size, contentType };
 }
 

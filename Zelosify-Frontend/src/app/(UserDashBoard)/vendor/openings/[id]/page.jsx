@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { useDropzone } from "react-dropzone";
 import {
   BriefcaseBusiness,
   Eye,
@@ -30,8 +31,68 @@ export default function OpeningDetailsPage() {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [profileToRemove, setProfileToRemove] = useState(null);
+  const [removingProfileId, setRemovingProfileId] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  const handleFilesAdded = useCallback((acceptedFiles, fileRejections) => {
+    const existingKeys = new Set(
+      selectedFiles.map((file) => `${file.name}:${file.size}:${file.lastModified}`)
+    );
+    const newFiles = acceptedFiles.filter((file) => {
+      const key = `${file.name}:${file.size}:${file.lastModified}`;
+      if (existingKeys.has(key)) return false;
+      existingKeys.add(key);
+      return true;
+    });
+    const availableSlots = Math.max(0, 10 - selectedFiles.length);
+    const filesToAdd = newFiles.slice(0, availableSlots);
+    const messages = [];
+
+    if (filesToAdd.length) {
+      setSelectedFiles([...selectedFiles, ...filesToAdd]);
+      setSuccess("");
+    }
+    if (newFiles.length > availableSlots) {
+      messages.push("Upload up to 10 files at a time.");
+    }
+    if (fileRejections.length) {
+      const reasons = new Set(
+        fileRejections.flatMap(({ errors }) => errors.map(({ code }) => code))
+      );
+      if (reasons.has("file-too-large")) {
+        messages.push("Each file must be 20 MB or smaller.");
+      }
+      if (reasons.has("file-invalid-type")) {
+        messages.push("Only PDF and PPTX files are supported.");
+      }
+      if (reasons.has("too-many-files")) {
+        messages.push("Upload up to 10 files at a time.");
+      }
+    }
+
+    setError(messages.join(" "));
+  }, [selectedFiles]);
+
+  const {
+    getRootProps,
+    getInputProps,
+    isDragActive,
+    isDragReject,
+  } = useDropzone({
+    onDrop: handleFilesAdded,
+    accept: {
+      "application/pdf": [".pdf"],
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation": [".pptx"],
+    },
+    multiple: true,
+    maxFiles: 10,
+    maxSize: 20 * 1024 * 1024,
+    minSize: 1,
+    disabled: busy,
+  });
 
   const loadOpening = useCallback(async () => {
     setLoading(true);
@@ -89,36 +150,55 @@ export default function OpeningDetailsPage() {
     setBusy(true);
 
     try {
-      const requested = selected.map((file) => ({
-        fileName: file.name,
-        size: file.size,
-      }));
+      const failedFiles = [];
+      const failedReasons = [];
+      let submittedCount = 0;
 
-      const { data } = await axiosInstance.post(
-        `/vendor/openings/${encodeURIComponent(id)}/profiles/presign`,
-        { files: requested }
-      );
+      for (let index = 0; index < selected.length; index += 1) {
+        const file = selected[index];
+        setUploadProgress(`Uploading ${index + 1} of ${selected.length}…`);
 
-      const formData = new FormData();
-      selected.forEach((file) => formData.append("files", file));
-      formData.append(
-        "uploadTokens",
-        JSON.stringify(data.data.map((item) => item.uploadToken))
-      );
+        try {
+          const { data } = await axiosInstance.post(
+            `/vendor/openings/${encodeURIComponent(id)}/profiles/presign`,
+            { files: [{ fileName: file.name, size: file.size }] }
+          );
+          const upload = data.data[0];
+          if (!upload?.uploadToken || !upload?.uploadEndpoint) {
+            throw new Error("Could not prepare this file for upload.");
+          }
 
-      await axiosInstance.post(data.data[0].uploadEndpoint, formData);
-
-      setSelectedFiles([]);
+          const formData = new FormData();
+          formData.append("files", file);
+          formData.append("uploadTokens", JSON.stringify([upload.uploadToken]));
+          await axiosInstance.post(upload.uploadEndpoint, formData);
+          submittedCount += 1;
+        } catch (fileUploadError) {
+          console.error(`Submission failed for ${file.name}:`, fileUploadError);
+          failedFiles.push(file);
+          failedReasons.push(
+            `${file.name}: ${fileUploadError.response?.data?.message || fileUploadError.message || "Upload failed"}`
+          );
+        }
+      }
 
       if (formElement && typeof formElement.reset === "function") {
         formElement.reset();
       }
-
-      setSuccess(
-        `${selected.length} profile${selected.length === 1 ? "" : "s"} submitted. Recommendations are processing in the background.`
-      );
+      setSelectedFiles(failedFiles);
 
       await loadOpening();
+
+      if (submittedCount > 0) {
+        setSuccess(
+          `${submittedCount} profile${submittedCount === 1 ? "" : "s"} submitted. Recommendations are processing in the background.`
+        );
+      }
+      if (failedFiles.length > 0) {
+        setError(
+          `Could not submit ${failedFiles.length} file${failedFiles.length === 1 ? "" : "s"}: ${failedReasons.join("; ")}. The remaining files were submitted; retry the selected files.`
+        );
+      }
     } catch (uploadError) {
       console.error("Submission error:", uploadError);
       setError(
@@ -128,6 +208,7 @@ export default function OpeningDetailsPage() {
       );
     } finally {
       setBusy(false);
+      setUploadProgress("");
     }
   };
 
@@ -162,15 +243,9 @@ export default function OpeningDetailsPage() {
   };
 
   const removeProfile = async (profile) => {
-    if (
-      !window.confirm(
-        `Remove ${profile.fileName} from your active submissions? It will be hidden from active views.`
-      )
-    )
-      return;
-
     setError("");
     setSuccess("");
+    setRemovingProfileId(profile.id);
 
     try {
       await axiosInstance.delete(
@@ -179,12 +254,15 @@ export default function OpeningDetailsPage() {
       setFiles((current) =>
         current.filter((item) => item.id !== profile.id)
       );
+      setProfileToRemove(null);
       setSuccess("Profile removed from your submission list.");
     } catch (requestError) {
       setError(
         requestError.response?.data?.message ||
           "Could not remove this profile."
       );
+    } finally {
+      setRemovingProfileId(null);
     }
   };
 
@@ -490,27 +568,35 @@ export default function OpeningDetailsPage() {
                       </p>
                     </div>
 
-                    <label className="group flex min-h-52 cursor-pointer flex-col items-center justify-center rounded-2xl bg-background/70 px-5 py-8 text-center transition hover:bg-primary/5">
+                    <div
+                      {...getRootProps({
+                        "aria-label": "Choose or drop PDF and PPTX candidate profiles",
+                        className: `group flex min-h-52 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-5 py-8 text-center transition ${
+                          isDragReject
+                            ? "border-rose-500 bg-rose-500/10"
+                            : isDragActive
+                              ? "border-primary bg-primary/10"
+                              : "border-transparent bg-background/70 hover:border-primary/40 hover:bg-primary/5"
+                        } ${busy ? "cursor-not-allowed opacity-60" : ""}`,
+                      })}
+                    >
+                      <input {...getInputProps()} />
                       <div className="rounded-2xl bg-cyan-500/15 p-4 text-cyan-700 transition group-hover:scale-105 dark:text-cyan-300">
                         <UploadCloud size={32} />
                       </div>
 
                       <span className="mt-4 font-bold text-foreground">
-                        Choose files to upload
+                        {isDragReject
+                          ? "PDF or PPTX files only"
+                          : isDragActive
+                            ? "Drop files to add them"
+                            : "Choose or drop files to upload"}
                       </span>
 
                       <span className="mt-2 text-xs text-muted-foreground">
-                        Browse your device · PDF or PPTX
+                        Browse your device or drag files here · PDF or PPTX · Up to 10 files, 20 MB each
                       </span>
-
-                      <input
-                        className="sr-only"
-                        type="file"
-                        accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation"
-                        multiple
-                        onChange={(event) => setSelectedFiles(event.target.files)}
-                      />
-                    </label>
+                    </div>
 
                     {selectedFiles.length > 0 && (
                       <div className="space-y-2">
@@ -555,7 +641,7 @@ export default function OpeningDetailsPage() {
                       {busy ? (
                         <>
                           <RefreshCw size={17} className="animate-spin" />
-                          Uploading securely…
+                          {uploadProgress || "Uploading securely…"}
                         </>
                       ) : (
                         <>
@@ -638,7 +724,7 @@ export default function OpeningDetailsPage() {
                       </button>
 
                       <button
-                        onClick={() => removeProfile(profile)}
+                        onClick={() => setProfileToRemove(profile)}
                         className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-rose-500/10 px-4 py-2.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-500/20 dark:text-rose-300 sm:flex-none"
                       >
                         <Trash2 size={15} />
@@ -651,6 +737,50 @@ export default function OpeningDetailsPage() {
             )}
           </section>
         </>
+      )}
+
+      {profileToRemove && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !removingProfileId) {
+              setProfileToRemove(null);
+            }
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="remove-profile-title"
+            className="w-full max-w-md rounded-2xl border border-border bg-background p-6 text-foreground shadow-2xl"
+          >
+            <h2 id="remove-profile-title" className="text-lg font-bold">
+              Remove this profile?
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              {profileToRemove.fileName} will be hidden from your active submissions.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                disabled={Boolean(removingProfileId)}
+                onClick={() => setProfileToRemove(null)}
+                className="rounded-xl bg-muted px-4 py-2.5 text-sm font-semibold transition hover:bg-accent disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={Boolean(removingProfileId)}
+                onClick={() => removeProfile(profileToRemove)}
+                className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:opacity-60"
+              >
+                {removingProfileId ? <RefreshCw size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                {removingProfileId ? "Removing…" : "Remove profile"}
+              </button>
+            </div>
+          </section>
+        </div>
       )}
     </main>
   );

@@ -8,9 +8,6 @@ import {
   RefreshCw,
   Search,
   ArrowUpRight,
-  Clock3,
-  FileText,
-  Users,
 } from "lucide-react";
 import useHiring from "@/hooks/Hiring/useHiring";
 
@@ -39,6 +36,7 @@ export default function VendorOpeningsPage() {
         opening.title,
         opening.location,
         opening.contractType,
+        opening.hiringManagerName,
         opening.description,
         ...(opening.requiredSkills || []),
       ]
@@ -59,24 +57,17 @@ export default function VendorOpeningsPage() {
     loadVendorOpenings(true);
   };
 
-  const formatExperience = (opening) => {
-    const min = opening.experienceMin ?? 0;
-    const max = opening.experienceMax;
-
-    if (max === undefined || max === null) {
-      return `${min}+ years`;
-    }
-
-    return `${min}–${max} years`;
+  const formatPostedDate = (value) => {
+    if (!value) return "—";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+      ? "—"
+      : date.toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
   };
-
-  const skillStyles = [
-    "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
-    "bg-violet-500/10 text-violet-700 dark:text-violet-300",
-    "bg-amber-500/10 text-amber-700 dark:text-amber-300",
-    "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-    "bg-rose-500/10 text-rose-700 dark:text-rose-300",
-  ];
 
   return (
     <main className="min-h-screen bg-background px-4 py-7 text-foreground sm:px-6 lg:px-9 lg:py-10">
@@ -252,116 +243,66 @@ export default function VendorOpeningsPage() {
               </div>
             )}
 
-          {/* Opportunity cards */}
+          {/* Openings table */}
           {filteredOpenings.length > 0 && (
-            <div className="grid gap-6 lg:grid-cols-2">
-              {filteredOpenings.map((opening, index) => (
-                <article
-                  key={opening.id}
-                  className="group relative flex flex-col overflow-hidden rounded-3xl bg-[color:var(--tertiary)] transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/10"
-                >
-                  <div className="flex flex-1 flex-col p-6 sm:p-7">
-                    {/* Title and location */}
-                    <div className="flex items-start gap-4">
-                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-700 dark:text-cyan-300">
-                        <BriefcaseBusiness size={26} />
-                      </div>
-
-                      <div className="min-w-0 flex-1 pt-0.5">
-                        <h3 className="text-xl font-bold leading-snug tracking-tight text-foreground transition group-hover:text-primary">
-                          {opening.title}
-                        </h3>
-
-                        <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-                          <MapPin
-                            size={16}
-                            className="shrink-0 text-primary"
-                          />
-                          {opening.location || "Location not specified"}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Role information */}
-                    <div className="mt-7 grid grid-cols-2 gap-3">
-                      <div className="rounded-2xl bg-cyan-500/10 p-4">
-                        <p className="text-xs font-medium text-muted-foreground">
-                          Employment type
-                        </p>
-                        <p className="mt-2 truncate text-base font-bold text-foreground">
-                          {opening.contractType || "Not specified"}
-                        </p>
-                      </div>
-
-                      <div className="rounded-2xl bg-violet-500/10 p-4">
-                        <p className="text-xs font-medium text-muted-foreground">
-                          Experience required
-                        </p>
-                        <p className="mt-2 text-base font-bold text-foreground">
-                          {formatExperience(opening)}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Description */}
-                    <div className="mt-7">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                        About this role
-                      </h4>
-
-                      <p className="mt-3 line-clamp-2 min-h-12 text-sm leading-6 text-muted-foreground">
-                        {opening.description || "No description provided."}
-                      </p>
-                    </div>
-
-                    {/* Skills */}
-                    {opening.requiredSkills?.length > 0 && (
-                      <div className="mt-6">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                          Required skills
-                        </h4>
-
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {opening.requiredSkills
-                            .slice(0, 6)
-                            .map((skill, skillIndex) => (
-                              <span
-                                key={skill}
-                                className={`rounded-full px-3.5 py-2 text-xs font-semibold ${
-                                  skillStyles[skillIndex % skillStyles.length]
-                                }`}
-                              >
-                                {skill}
-                              </span>
-                            ))}
-
-                          {opening.requiredSkills.length > 6 && (
-                            <span className="rounded-full bg-muted px-3.5 py-2 text-xs font-semibold text-muted-foreground">
-                              +{opening.requiredSkills.length - 6} more
-                            </span>
+            <div className="overflow-hidden rounded-2xl bg-[color:var(--tertiary)]">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[850px] text-left">
+                  <thead className="border-b border-border/60 bg-background/40">
+                    <tr className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      <th scope="col" className="px-5 py-4">Title</th>
+                      <th scope="col" className="px-5 py-4">Location</th>
+                      <th scope="col" className="px-5 py-4">Contract type</th>
+                      <th scope="col" className="px-5 py-4">Posted date</th>
+                      <th scope="col" className="px-5 py-4">Hiring manager</th>
+                      <th scope="col" className="px-5 py-4"><span className="sr-only">Action</span></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/50">
+                    {filteredOpenings.map((opening) => (
+                      <tr key={opening.id} className="transition hover:bg-background/30">
+                        <th scope="row" className="max-w-xs px-5 py-5 font-semibold text-foreground">
+                          <Link
+                            href={`/vendor/openings/${encodeURIComponent(opening.id)}`}
+                            className="transition hover:text-primary hover:underline"
+                          >
+                            {opening.title}
+                          </Link>
+                          {opening.description && (
+                            <p className="mt-1 line-clamp-2 text-xs font-normal leading-5 text-muted-foreground">
+                              {opening.description}
+                            </p>
                           )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Bottom action */}
-                    <div className="mt-auto pt-7">
-                      <div className="mb-5 h-px bg-border/50" />
-
-                      <Link
-                        href={`/vendor/openings/${encodeURIComponent(opening.id)}`}
-                        className="flex w-full items-center justify-between gap-3 rounded-xl bg-[#24476b] px-5 py-4 text-sm font-semibold text-white shadow-md shadow-[#24476b]/15 transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#1b3855] hover:shadow-lg hover:shadow-[#24476b]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:bg-[#294766] dark:text-white dark:shadow-black/20 dark:hover:bg-[#355a7d] dark:hover:shadow-lg dark:focus-visible:ring-offset-background"
-                      >
-                        <span>View opportunity & submit candidate</span>
-                        <ArrowUpRight
-                          size={19}
-                          className="shrink-0 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1"
-                        />
-                      </Link>
-                    </div>
-                  </div>
-                </article>
-              ))}
+                        </th>
+                        <td className="whitespace-nowrap px-5 py-5 text-sm text-foreground/85">
+                          <span className="inline-flex items-center gap-2">
+                            <MapPin size={15} className="shrink-0 text-primary" />
+                            {opening.location || "Not specified"}
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-5 text-sm text-foreground/85">
+                          {opening.contractType || "Not specified"}
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-5 text-sm text-foreground/85">
+                          {formatPostedDate(opening.postedDate)}
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-5 text-sm text-foreground/85">
+                          {opening.hiringManagerName || "Hiring team"}
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-5 text-right">
+                          <Link
+                            href={`/vendor/openings/${encodeURIComponent(opening.id)}`}
+                            className="inline-flex items-center gap-2 rounded-lg bg-[#24476b] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#1b3855] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:bg-[#294766] dark:hover:bg-[#355a7d] dark:focus-visible:ring-offset-background"
+                          >
+                            View & apply
+                            <ArrowUpRight size={16} />
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </section>
